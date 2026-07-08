@@ -34,3 +34,10 @@ Lesson: headless smoke testing catches JS syntax/runtime errors but not
 platform-specific API behavior (Android's notification constructor restriction) or
 service-worker update-lifecycle bugs — on-device testing remains required before
 considering a milestone done.
+
+4. **Tapping the system notification didn't dismiss it or focus the app.** `sw.js`
+   had no `notificationclick` listener at all, so tapping a notification did whatever
+   the OS default is (leaving it in the shade) instead of closing it and
+   focusing/opening the app. Fixed by adding a `notificationclick` handler that closes
+   the notification and focuses an existing window or opens a new one. `CACHE_NAME`
+   bumped to `eclipse2026-v4` accordingly.
