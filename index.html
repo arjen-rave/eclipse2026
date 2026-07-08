@@ -170,12 +170,29 @@
     margin-top: 1rem;
   }
   .alert-banner {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
     background: #2a2410;
     border: 1px solid var(--accent);
     color: var(--accent);
     border-radius: 10px;
     padding: 0.65rem 0.8rem;
     font-size: 0.85rem;
+  }
+  .alert-banner span {
+    flex: 1;
+  }
+  .alert-banner-close {
+    flex-shrink: 0;
+    background: none;
+    border: none;
+    color: var(--accent);
+    font-size: 1.3rem;
+    line-height: 1;
+    padding: 0.35rem 0.5rem;
+    min-width: 2rem;
+    min-height: 2rem;
   }
   details.debug {
     margin-top: 1.5rem;
@@ -377,8 +394,17 @@
   function showBanner(message) {
     const el = document.createElement("div");
     el.className = "alert-banner";
-    el.textContent = message;
+    const text = document.createElement("span");
+    text.textContent = message;
+    const closeBtn = document.createElement("button");
+    closeBtn.textContent = "×";
+    closeBtn.className = "alert-banner-close";
+    closeBtn.setAttribute("aria-label", "Dismiss");
+    closeBtn.addEventListener("click", () => el.remove());
+    el.appendChild(text);
+    el.appendChild(closeBtn);
     alertBanners.appendChild(el);
+    setTimeout(() => el.remove(), 15000);
   }
 
   // Web Audio oscillator beep (CrossFitTimer pattern — no audio files needed).
@@ -403,12 +429,12 @@
   function fireAlert(message) {
     showBanner(message);
     beepAlert();
-    if ("Notification" in window && Notification.permission === "granted") {
-      try {
-        new Notification("Eclipse reminder", { body: message, icon: "icons/icon-192.png" });
-      } catch (e) {
-        console.error("Notification failed", e);
-      }
+    // Android Chrome requires notifications to go through the service worker —
+    // the plain `new Notification(...)` constructor throws "Illegal constructor" there.
+    if ("Notification" in window && Notification.permission === "granted" && "serviceWorker" in navigator) {
+      navigator.serviceWorker.ready.then((reg) => {
+        reg.showNotification("Eclipse reminder", { body: message, icon: "icons/icon-192.png" });
+      }).catch((e) => console.error("Notification failed", e));
     }
   }
 

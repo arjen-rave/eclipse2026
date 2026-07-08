@@ -1,4 +1,8 @@
-const CACHE_NAME = "ec-cache-v1";
+// Bump this string on every deploy — it's what forces the browser to detect this
+// file as changed, run the update lifecycle, and purge the previous cache. Without a
+// change here, Chrome won't even notice a new service worker exists (it byte-diffs
+// this file), so old cached content keeps being served indefinitely.
+const CACHE_NAME = "eclipse2026-v3";
 const CORE_ASSETS = [
   "./",
   "./index.html",
@@ -8,36 +12,24 @@ const CORE_ASSETS = [
 ];
 
 self.addEventListener("install", (event) => {
+  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => cache.addAll(CORE_ASSETS))
   );
-  self.skipWaiting();
 });
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(
-        keys
-          .filter((key) => key !== CACHE_NAME)
-          .map((key) => caches.delete(key))
+    caches.keys()
+      .then((keys) =>
+        Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
       )
-    )
+      .then(() => self.clients.claim())
   );
-  self.clients.claim();
 });
 
 self.addEventListener("fetch", (event) => {
   event.respondWith(
-    caches.match(event.request).then((cached) => {
-      if (cached) return cached;
-      return fetch(event.request).then((response) => {
-        if (event.request.method === "GET" && response.ok) {
-          const copy = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
-        }
-        return response;
-      });
-    })
+    caches.match(event.request).then((cached) => cached || fetch(event.request))
   );
 });
