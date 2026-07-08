@@ -35,6 +35,11 @@ location).
 - Generic solar azimuth/altitude (Meeus ch. 25): Milestone E only, not shared with C.
 - Timezone/DST: one shared `Europe/Amsterdam` conversion utility via `Intl`.
 
+## Future UI considerations (not now — revisit once all 4 features are built)
+- Possibly condense the 4 bottom tabs (Countdown/Coverage/Checklist/Camera) into
+  fewer screens once real content is in place — deferred until Milestones B-E are
+  done and there's real content to judge the layout against.
+
 ## Milestone status
 - [x] A — PWA skeleton & install
 - [ ] B — Countdown + in-app local alerts
