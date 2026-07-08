@@ -117,6 +117,90 @@
     font-size: 0.75rem;
     font-weight: 600;
   }
+
+  .countdown-target {
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.8rem;
+  }
+  .countdown-clock {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+    margin: 1.25rem 0;
+  }
+  .countdown-clock .unit {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 0.6rem 0.5rem;
+    min-width: 3.6rem;
+    text-align: center;
+  }
+  .countdown-clock .unit .val {
+    font-size: 1.5rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+  .countdown-clock .unit .lbl {
+    font-size: 0.65rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  #notifyBtn {
+    display: block;
+    margin: 0 auto 1rem;
+    background: var(--border);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 0.5rem 1rem;
+    font-size: 0.85rem;
+  }
+  #notifyBtn.granted {
+    background: var(--accent);
+    color: var(--bg);
+    border-color: var(--accent);
+  }
+  #alertBanners {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-top: 1rem;
+  }
+  .alert-banner {
+    background: #2a2410;
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    border-radius: 10px;
+    padding: 0.65rem 0.8rem;
+    font-size: 0.85rem;
+  }
+  details.debug {
+    margin-top: 1.5rem;
+    border-top: 1px dashed var(--border);
+    padding-top: 0.75rem;
+  }
+  details.debug summary {
+    color: var(--muted);
+    font-size: 0.75rem;
+    cursor: pointer;
+  }
+  details.debug .debug-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.6rem;
+  }
+  details.debug button {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    border-radius: 8px;
+    padding: 0.35rem 0.6rem;
+    font-size: 0.7rem;
+  }
 </style>
 </head>
 <body>
@@ -131,9 +215,30 @@
 <main>
   <section class="panel active" id="panel-countdown">
     <h2>Countdown</h2>
-    <p>Countdown to local eclipse maximum, plus a T&#8209;30 and T&#8209;5&nbsp;minute
-      reminder, will appear here.</p>
+    <p class="countdown-target" id="targetLabel">Loading target time&hellip;</p>
+    <div class="countdown-clock" id="clock">
+      <div class="unit"><div class="val" id="clockDays">--</div><div class="lbl">days</div></div>
+      <div class="unit"><div class="val" id="clockHours">--</div><div class="lbl">hrs</div></div>
+      <div class="unit"><div class="val" id="clockMins">--</div><div class="lbl">min</div></div>
+      <div class="unit"><div class="val" id="clockSecs">--</div><div class="lbl">sec</div></div>
+    </div>
+    <button id="notifyBtn">Enable notifications</button>
+    <div id="alertBanners"></div>
+    <p style="font-size:0.8rem;">
+      This countdown target is a <strong>placeholder</strong> for now &mdash; Milestone C
+      will replace it with the real local eclipse time for your location.
+    </p>
     <span class="placeholder-tag">Built in Milestone B</span>
+
+    <details class="debug">
+      <summary>Debug (remove before 12 Aug 2026)</summary>
+      <div class="debug-buttons">
+        <button id="dbgT31">Jump to T&minus;31 min</button>
+        <button id="dbgT6">Jump to T&minus;6 min</button>
+        <button id="dbgT1">Jump to T&minus;1 min</button>
+        <button id="dbgReset">Reset</button>
+      </div>
+    </details>
   </section>
 
   <section class="panel" id="panel-coverage">
@@ -214,6 +319,157 @@
 
   window.addEventListener("appinstalled", () => {
     installBtn.style.display = "none";
+  });
+
+  // ---- Shared: local time formatter (Europe/Amsterdam, DST-safe) ----
+  // Reused as-is by Milestone C (real eclipse time) and Milestone F (reminder scheduling).
+  function formatLocal(dateUTC) {
+    return new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Europe/Amsterdam",
+      weekday: "short",
+      day: "2-digit",
+      month: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).format(dateUTC) + " local";
+  }
+
+  // ---- Countdown/tick engine ----
+  // Reused as-is by Milestone C, which only swaps ec.targetUTC for the real
+  // location-derived time. Not rebuilt there.
+  const ec = {
+    // Placeholder target (evening, per the known evening-not-midday timing for this
+    // eclipse) — replaced with the real computed local-maximum time in Milestone C.
+    targetUTC: new Date("2026-08-12T19:00:00Z"),
+    fired: new Set(),
+    simulatedOffsetMs: 0, // debug-only; always 0 in real use
+  };
+
+  function ecNow() {
+    return new Date(Date.now() + ec.simulatedOffsetMs);
+  }
+
+  const clockEls = {
+    days: document.getElementById("clockDays"),
+    hours: document.getElementById("clockHours"),
+    mins: document.getElementById("clockMins"),
+    secs: document.getElementById("clockSecs"),
+  };
+  const targetLabel = document.getElementById("targetLabel");
+  const alertBanners = document.getElementById("alertBanners");
+
+  targetLabel.textContent = "Counting down to " + formatLocal(ec.targetUTC) + " (placeholder)";
+
+  function renderCountdown(msRemaining) {
+    const clamped = Math.max(0, msRemaining);
+    const totalSecs = Math.floor(clamped / 1000);
+    const days = Math.floor(totalSecs / 86400);
+    const hours = Math.floor((totalSecs % 86400) / 3600);
+    const mins = Math.floor((totalSecs % 3600) / 60);
+    const secs = totalSecs % 60;
+    clockEls.days.textContent = String(days);
+    clockEls.hours.textContent = String(hours).padStart(2, "0");
+    clockEls.mins.textContent = String(mins).padStart(2, "0");
+    clockEls.secs.textContent = String(secs).padStart(2, "0");
+  }
+
+  function showBanner(message) {
+    const el = document.createElement("div");
+    el.className = "alert-banner";
+    el.textContent = message;
+    alertBanners.appendChild(el);
+  }
+
+  // Web Audio oscillator beep (CrossFitTimer pattern — no audio files needed).
+  let audioCtx = null;
+  function tone(freq, durSec, type, vol) {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = type;
+    osc.frequency.value = freq;
+    gain.gain.value = vol;
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+    osc.start();
+    osc.stop(audioCtx.currentTime + durSec);
+  }
+  function beepAlert() {
+    tone(880, 0.35, "sine", 0.35);
+    setTimeout(() => tone(880, 0.35, "sine", 0.35), 500);
+  }
+
+  function fireAlert(message) {
+    showBanner(message);
+    beepAlert();
+    if ("Notification" in window && Notification.permission === "granted") {
+      try {
+        new Notification("Eclipse reminder", { body: message, icon: "icons/icon-192.png" });
+      } catch (e) {
+        console.error("Notification failed", e);
+      }
+    }
+  }
+
+  function checkThresholds(msRemaining) {
+    const minsRemaining = msRemaining / 60000;
+    if (minsRemaining <= 30 && minsRemaining > 0 && !ec.fired.has("t30")) {
+      ec.fired.add("t30");
+      fireAlert("Get ready — eclipse starts in 30 minutes. Test your camera and grab your glasses.");
+    }
+    if (minsRemaining <= 5 && minsRemaining > 0 && !ec.fired.has("t5")) {
+      ec.fired.add("t5");
+      fireAlert("Almost time — get in position. Eclipse starts in 5 minutes.");
+    }
+  }
+
+  function tick() {
+    const now = ecNow();
+    const msRemaining = ec.targetUTC.getTime() - now.getTime();
+    renderCountdown(msRemaining);
+    checkThresholds(msRemaining);
+  }
+  tick();
+  setInterval(tick, 250); // Date.now()-delta based inside tick(), so this stays
+                          // accurate even if the tab is throttled in the background.
+
+  // ---- Notification permission ----
+  const notifyBtn = document.getElementById("notifyBtn");
+  function refreshNotifyBtn() {
+    if (!("Notification" in window)) {
+      notifyBtn.style.display = "none";
+      return;
+    }
+    if (Notification.permission === "granted") {
+      notifyBtn.textContent = "Notifications enabled";
+      notifyBtn.classList.add("granted");
+    } else {
+      notifyBtn.textContent = "Enable notifications";
+      notifyBtn.classList.remove("granted");
+    }
+  }
+  notifyBtn.addEventListener("click", async () => {
+    if (!("Notification" in window)) return;
+    await Notification.requestPermission();
+    refreshNotifyBtn();
+  });
+  refreshNotifyBtn();
+
+  // ---- Debug controls (remove before 12 Aug 2026 — see plan risk #5) ----
+  function debugJumpTo(minutesRemaining) {
+    const desiredNow = ec.targetUTC.getTime() - minutesRemaining * 60000;
+    ec.simulatedOffsetMs = desiredNow - Date.now();
+    tick();
+  }
+  document.getElementById("dbgT31").addEventListener("click", () => debugJumpTo(31));
+  document.getElementById("dbgT6").addEventListener("click", () => debugJumpTo(6));
+  document.getElementById("dbgT1").addEventListener("click", () => debugJumpTo(1));
+  document.getElementById("dbgReset").addEventListener("click", () => {
+    ec.simulatedOffsetMs = 0;
+    ec.fired.clear();
+    alertBanners.innerHTML = "";
+    tick();
   });
 </script>
 

@@ -42,7 +42,7 @@ location).
 
 ## Milestone status
 - [x] A — PWA skeleton & install
-- [ ] B — Countdown + in-app local alerts
+- [x] B — Countdown + in-app local alerts
 - [ ] C — Location + coverage calculator
 - [ ] D — Safety checklist
 - [ ] E — Camera "find the sun" aid
