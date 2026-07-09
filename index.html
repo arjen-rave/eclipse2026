@@ -296,6 +296,57 @@
     padding: 0.6rem 0.8rem;
     font-size: 0.85rem;
   }
+
+  .checklist-warning {
+    background: #2a1810;
+    border: 1px solid #d97438;
+    color: #ffb37a;
+    border-radius: 10px;
+    padding: 0.75rem 0.9rem;
+    font-size: 0.85rem;
+    line-height: 1.5;
+  }
+  .checklist-progress {
+    text-align: center;
+    font-weight: 600;
+    color: var(--muted);
+    margin: 1rem 0 0.5rem;
+  }
+  .checklist-progress.all-done {
+    color: var(--accent);
+  }
+  .checklist {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .checklist li {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+  }
+  .checklist label {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.65rem;
+    padding: 0.75rem 0.9rem;
+    font-size: 0.88rem;
+    line-height: 1.4;
+  }
+  .checklist input[type="checkbox"] {
+    flex-shrink: 0;
+    width: 1.25rem;
+    height: 1.25rem;
+    margin-top: 0.1rem;
+    accent-color: var(--accent);
+  }
+  .checklist li.checked label {
+    color: var(--muted);
+    text-decoration: line-through;
+  }
 </style>
 </head>
 <body>
@@ -375,8 +426,13 @@
 
   <section class="panel" id="panel-checklist">
     <h2>Safety checklist</h2>
-    <p>ISO 12312-2 glasses, camera solar filter, and other prep items will appear
-      here as a checklist.</p>
+    <p class="checklist-warning">
+      This is a <strong>partial</strong> eclipse in the Netherlands &mdash; the sun is
+      never fully covered, so there is <strong>no safe moment to look at it without
+      proper eye protection</strong>. Keep your glasses on for the whole event.
+    </p>
+    <p class="checklist-progress" id="checklistProgress"></p>
+    <ul class="checklist" id="checklistItems"></ul>
     <span class="placeholder-tag">Built in Milestone D</span>
   </section>
 
@@ -763,6 +819,77 @@
   // re-enter it every time they open the app.
   const storedLocation = loadStoredLocation();
   if (storedLocation) applyLocation(storedLocation);
+
+  // ---- Safety checklist (Milestone D) ----
+  // Partial-eclipse-only content: there is no totality here, so no "safe to remove
+  // glasses" moment exists — every item reflects that, unlike a totality checklist.
+  const CHECKLIST_KEY = "ec_checklist_state";
+  const CHECKLIST_ITEMS = [
+    { id: "glasses", label: "ISO 12312-2 certified eclipse glasses ready — required the whole time, there is no safe moment to remove them for this partial eclipse." },
+    { id: "glassesTested", label: "Glasses/filter checked beforehand for scratches, punctures, or damage." },
+    { id: "cameraFilter", label: "Solar filter fitted for your phone/camera lens, if you plan to photograph the sun — without one, the sensor can be damaged." },
+    { id: "knowStartTime", label: "You know your local eclipse start time (see the Coverage tab)." },
+    { id: "familyBriefed", label: "Family/kids briefed: never look at the sun without proper glasses on, at any point." },
+    { id: "spot", label: "Viewing spot picked with a clear view low toward the sun (it'll be in the evening sky)." },
+  ];
+
+  function loadChecklistState() {
+    try {
+      const raw = localStorage.getItem(CHECKLIST_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch (e) {
+      return {};
+    }
+  }
+  function saveChecklistState(state) {
+    try {
+      localStorage.setItem(CHECKLIST_KEY, JSON.stringify(state));
+    } catch (e) {
+      console.error("Could not save checklist state", e);
+    }
+  }
+
+  // Exposed for Milestone F (server-side Day-3 reminder needs to know whether the
+  // checklist is complete before deciding to send its nag).
+  function isChecklistComplete() {
+    const state = loadChecklistState();
+    return CHECKLIST_ITEMS.every((item) => state[item.id]);
+  }
+
+  const checklistState = loadChecklistState();
+  const checklistItemsEl = document.getElementById("checklistItems");
+  const checklistProgressEl = document.getElementById("checklistProgress");
+
+  function renderChecklistProgress() {
+    const doneCount = CHECKLIST_ITEMS.filter((item) => checklistState[item.id]).length;
+    const allDone = doneCount === CHECKLIST_ITEMS.length;
+    checklistProgressEl.textContent = allDone
+      ? "All set for the eclipse!"
+      : doneCount + " of " + CHECKLIST_ITEMS.length + " ready";
+    checklistProgressEl.classList.toggle("all-done", allDone);
+  }
+
+  CHECKLIST_ITEMS.forEach((item) => {
+    const li = document.createElement("li");
+    const label = document.createElement("label");
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.checked = !!checklistState[item.id];
+    li.classList.toggle("checked", checkbox.checked);
+    checkbox.addEventListener("change", () => {
+      checklistState[item.id] = checkbox.checked;
+      saveChecklistState(checklistState);
+      li.classList.toggle("checked", checkbox.checked);
+      renderChecklistProgress();
+    });
+    const span = document.createElement("span");
+    span.textContent = item.label;
+    label.appendChild(checkbox);
+    label.appendChild(span);
+    li.appendChild(label);
+    checklistItemsEl.appendChild(li);
+  });
+  renderChecklistProgress();
 </script>
 
 </body>

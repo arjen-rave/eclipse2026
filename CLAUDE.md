@@ -46,13 +46,13 @@ location).
 ## Milestone status
 - [x] A — PWA skeleton & install
 - [x] B — Countdown + in-app local alerts
-- [ ] C — Location + coverage calculator
+- [x] C — Location + coverage calculator (incl. address search via OpenStreetMap Nominatim)
   - [x] C1 — Source & transcribe Besselian elements (`besselian-2026-08-12.js`)
   - [x] C2 — Implement `localCircumstances()` math + self-check vs. reference values
   - [x] C3 — Validate against real reference data for NL locations (Amsterdam,
         Groningen, Maastricht, The Hague)
   - [x] C4 — Wire into UI (geolocation + manual override, Coverage tab, real countdown target)
-- [ ] D — Safety checklist
+- [x] D — Safety checklist
 - [ ] E — Camera "find the sun" aid
 - [ ] F — Server-side reminders (Render + GitHub Actions trigger)
 - [ ] G — Full dry-run rehearsal (mandatory before 12 Aug 2026)

@@ -171,4 +171,22 @@ No errors encountered. Verified end-to-end via headless Chrome against the real
 Nominatim API (not mocked): searching "Groningen, Netherlands" returned 3 matches,
 selecting the first correctly resolved to 87% coverage with times matching the
 earlier-validated Groningen figures (19:14/20:09/21:00). Bumped `CACHE_NAME` to
-`eclipse2026-v6` since `index.html` changed.
+`eclipse2026-v6` since `index.html` changed. Confirmed on-device by the user,
+including a search for a place in France (works for arbitrary locations, not just
+the Netherlands, since the underlying math isn't NL-specific).
+
+## Milestone D — Safety checklist
+
+No errors encountered. Six items, all reflecting the partial-eclipse-only reality
+(no totality-style "safe to remove glasses" window — explicit warning banner at the
+top of the tab plus glasses-related items say "required the whole time"): glasses
+ready, glasses/filter tested for damage, camera solar filter, knowing local start
+time, family briefed, viewing spot picked. State persists in `localStorage`
+(`ec_checklist_state`). Exposed `isChecklistComplete()` on `window` for Milestone F's
+Day-3 conditional server reminder to call later.
+
+Verified end-to-end via a headless-Chrome iframe test: 6 checkboxes render,
+`isChecklistComplete()` correctly toggles false/true/false as items are
+checked/unchecked, and — reloading the iframe to simulate a real app restart — all
+checked state and the "All set for the eclipse!" progress message persisted
+correctly. Bumped `CACHE_NAME` to `eclipse2026-v7` since `index.html` changed.
