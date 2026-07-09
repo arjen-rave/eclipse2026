@@ -1,1 +1,8 @@
-{}
+{
+  "TEST-ENTRY-DELETE-ME": {
+    "subscription": {
+      "endpoint": "TEST-ENTRY-DELETE-ME"
+    },
+    "checklistComplete": false
+  }
+}
