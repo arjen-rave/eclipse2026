@@ -190,3 +190,11 @@ Verified end-to-end via a headless-Chrome iframe test: 6 checkboxes render,
 checked/unchecked, and — reloading the iframe to simulate a real app restart — all
 checked state and the "All set for the eclipse!" progress message persisted
 correctly. Bumped `CACHE_NAME` to `eclipse2026-v7` since `index.html` changed.
+
+**Deployment note (infra, not app):** the GitHub Pages build for this commit got
+stuck in `queued` status with "The job was not acquired by Runner of type hosted even
+after multiple attempts" — a transient GitHub Actions hosted-runner issue, confirmed
+via the Actions API (run stayed queued for 30+ minutes, unaffected by a manual
+re-run). Not caused by anything in this repo. Resolved by pushing this small
+documentation commit, which queues a brand-new deployment run separate from the
+stuck one.
