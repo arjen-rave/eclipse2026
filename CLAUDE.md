@@ -44,6 +44,10 @@ location).
 - [x] A — PWA skeleton & install
 - [x] B — Countdown + in-app local alerts
 - [ ] C — Location + coverage calculator
+  - [x] C1 — Source & transcribe Besselian elements (`besselian-2026-08-12.js`)
+  - [ ] C2 — Implement `localCircumstances()` math + self-check vs. reference values
+  - [ ] C3 — Validate against timeanddate.com for NL reference location(s)
+  - [ ] C4 — Wire into UI (geolocation + manual override, Coverage tab, real countdown target)
 - [ ] D — Safety checklist
 - [ ] E — Camera "find the sun" aid
 - [ ] F — Server-side reminders (Render + GitHub Actions trigger)

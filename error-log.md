@@ -41,3 +41,13 @@ considering a milestone done.
    focusing/opening the app. Fixed by adding a `notificationclick` handler that closes
    the notification and focuses an existing window or opens a new one. `CACHE_NAME`
    bumped to `eclipse2026-v4` accordingly.
+
+## Milestone C1 — Source & transcribe Besselian elements
+
+No errors encountered. Sourced from NASA/GSFC's published page for this eclipse via
+two independently-worded fetches (one structured extraction, one verbatim raw-text
+request) — both agreed exactly on every coefficient, so no discrepancy to resolve.
+Parsed the resulting `besselian-2026-08-12.js` in headless Chrome to confirm it's
+syntactically valid and every value round-trips correctly through `JSON.stringify`.
+Not yet checked against a fully independent second publisher (e.g. IMCCE/HMNAO) —
+noted as non-blocking in the file's header comment, can revisit if wanted later.
