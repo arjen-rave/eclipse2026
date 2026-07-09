@@ -46,7 +46,8 @@ location).
 - [ ] C — Location + coverage calculator
   - [x] C1 — Source & transcribe Besselian elements (`besselian-2026-08-12.js`)
   - [x] C2 — Implement `localCircumstances()` math + self-check vs. reference values
-  - [ ] C3 — Validate against timeanddate.com for NL reference location(s)
+  - [x] C3 — Validate against real reference data for NL locations (Amsterdam,
+        Groningen, Maastricht, The Hague)
   - [ ] C4 — Wire into UI (geolocation + manual override, Coverage tab, real countdown target)
 - [ ] D — Safety checklist
 - [ ] E — Camera "find the sun" aid

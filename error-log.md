@@ -94,3 +94,30 @@ One real bug found and fixed during self-checking, one residual discrepancy flag
 Validation overlapped with what Milestone C3 was scoped to do (a real NL reference
 city, from timeanddate.com) — worth reviewing at C3 whether much further validation
 is still needed given this result.
+
+## Milestone C3 — Validate against real reference data for multiple NL locations
+
+Per user request, added Groningen and Maastricht to Amsterdam as reference points
+(plus The Hague, added during debugging). timeanddate.com and theskylive.com both
+returned HTTP 403 to direct fetches in this session, so reference figures came from:
+Amsterdam via a direct Wikipedia table fetch (higher confidence), and Groningen/
+Maastricht/The Hague via WebSearch-summarized snippets of theskylive.com (lower
+confidence — not independently re-verified against the primary page).
+
+Results: Amsterdam 88.06% computed vs. 88.26% published (0.20pt), Maastricht 88.73%
+vs. 88.89% (0.16pt), The Hague 88.53% vs. 88.69% (0.16pt) — all tight, consistent
+matches. **Groningen 86.81% computed vs. 89.08% published — a 2.27pt gap, notably
+larger than the other three.**
+
+Investigated rather than accepted at face value: Groningen is the most easterly and
+northerly of the four cities, yet the reference claims it has the *highest* coverage
+of the four, while the implementation (which matches the other three tightly) shows a
+smooth spatial gradient implying it should have the *lowest* — a directional
+contradiction, not just noise. Combined with Groningen's reference figure coming from
+a lower-confidence sourcing path (search-snippet summary, never independently
+fetched/verified) versus the strong, direct-source-backed agreement at the other
+three points, the working conclusion is that the "89.08%" reference figure itself is
+the unreliable one, not the implementation. Not pursued further (would require a
+direct fetch of theskylive.com's Groningen page, which returned 403 in this session).
+Flagging this conclusion rather than treating it as fully closed — worth a second
+look if a reliable direct source for Groningen turns up later.
