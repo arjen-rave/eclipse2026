@@ -331,3 +331,27 @@ subscriber and exits, never touching `sent-log.json`/`subscriptions.json` — th
 workflow also skips its commit-back step entirely in this mode. Completely
 independent from the real reminder state machine, so it can be run as many times as
 needed with zero risk to the real schedule.
+
+## Debugging on-device: subscription not landing in subscriptions.json
+
+After both VAPID secrets were confirmed added, user tapped "Enable notifications" —
+got a real fresh permission popup (confirming this wasn't already-granted stale
+state) — but `subscriptions.json` stayed empty. Tried to get real console output via
+Chrome remote debugging (`chrome://inspect`, USB), but the phone never showed the
+USB-debugging authorization popup despite repeated reconnects/revokes — a platform/
+driver-level ADB issue, not something worth chasing further right now.
+
+Root issue with the diagnostic approach itself: `catch (e) { console.error(...) }`
+everywhere in the subscribe/sync path is invisible on a phone with no easy devtools
+access — the exact same class of mistake as the earlier Milestone B notification bug
+(silent catch masked a real error until on-device testing forced it into the open).
+Fixed properly this time by not relying on remote debugging at all: added a visible
+`#pushSyncStatus` status line under the "Enable notifications" button, and had
+`syncSubscription` (plus the three call sites: button click, on-load re-sync,
+checklist-change re-sync) write their actual outcome — "Subscribing…", "Synced ✓",
+"Retrying sync…", or the real error message — directly to that element. Whatever's
+actually failing should now be readable straight off the phone screen, no cable or
+DevTools needed. Bumped `CACHE_NAME` to `eclipse2026-v10`.
+
+Not yet re-tested on-device with this change — next step is to have the user tap
+"Enable notifications" again and report exactly what `#pushSyncStatus` shows.

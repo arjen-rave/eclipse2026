@@ -369,6 +369,7 @@
       <div class="unit"><div class="val" id="clockSecs">--</div><div class="lbl">sec</div></div>
     </div>
     <button id="notifyBtn">Enable notifications</button>
+    <p id="pushSyncStatus" style="text-align:center; font-size:0.75rem; color:var(--muted); min-height:1em;"></p>
     <div id="alertBanners"></div>
     <p style="font-size:0.8rem;">
       This countdown target is a <strong>placeholder</strong> for now &mdash; Milestone C
@@ -704,6 +705,16 @@
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
+  // Visible status reporting — deliberately not console-only. A phone has no easy
+  // way to view console output, and a silent console.error here is exactly the kind
+  // of bug that was hard to diagnose earlier in this project (the Milestone B
+  // notification bug). Whatever happens during subscribe/sync should be readable
+  // directly off the screen.
+  const pushSyncStatus = document.getElementById("pushSyncStatus");
+  function setPushSyncStatus(text) {
+    pushSyncStatus.textContent = text;
+  }
+
   async function syncSubscription(pushSubscription, checklistComplete) {
     // GitHub's Contents API has a real read-after-write propagation lag (confirmed
     // during testing: a GET immediately after a PUT returned stale content/sha for
@@ -720,13 +731,16 @@
           checklistComplete: !!checklistComplete,
         };
         await githubPutFile(SUBSCRIPTIONS_PATH, file.content, file.sha, "Sync push subscription");
+        setPushSyncStatus("Synced ✓");
         return true;
       } catch (e) {
         if (e.message === "conflict" && attempt < 2) {
+          setPushSyncStatus("Retrying sync…");
           await sleep(2000 * (attempt + 1));
           continue;
         }
         console.error("Failed to sync subscription", e);
+        setPushSyncStatus("Sync failed: " + e.message);
         return false;
       }
     }
@@ -765,22 +779,39 @@
     const permission = await Notification.requestPermission();
     refreshNotifyBtn();
     if (permission === "granted") {
+      setPushSyncStatus("Subscribing…");
       try {
         const sub = await subscribeToPush();
-        if (sub) await syncSubscription(sub, isChecklistComplete());
+        if (!sub) {
+          setPushSyncStatus("Push notifications aren't supported on this browser/device.");
+          return;
+        }
+        await syncSubscription(sub, isChecklistComplete());
       } catch (e) {
+        setPushSyncStatus("Subscribe failed: " + e.message);
         console.error("Push subscription failed", e);
       }
+    } else {
+      setPushSyncStatus("Notification permission was not granted.");
     }
   });
   refreshNotifyBtn();
 
   // Re-sync on every app open if already subscribed (self-healing — see the
-  // "Push-server storage decision" note in CLAUDE.md for why this matters here).
+  // "Reminder architecture decision" note in CLAUDE.md for why this matters here).
   if ("Notification" in window && Notification.permission === "granted") {
     subscribeToPush()
-      .then((sub) => sub && syncSubscription(sub, isChecklistComplete()))
-      .catch((e) => console.error("Re-sync on load failed", e));
+      .then((sub) => {
+        if (!sub) {
+          setPushSyncStatus("Push notifications aren't supported on this browser/device.");
+          return;
+        }
+        return syncSubscription(sub, isChecklistComplete());
+      })
+      .catch((e) => {
+        setPushSyncStatus("Re-sync failed: " + e.message);
+        console.error("Re-sync on load failed", e);
+      });
   }
 
   // ---- Debug controls (remove before 12 Aug 2026 — see plan risk #5) ----
@@ -1017,7 +1048,10 @@
       if ("Notification" in window && Notification.permission === "granted") {
         subscribeToPush()
           .then((sub) => sub && syncSubscription(sub, isChecklistComplete()))
-          .catch((e) => console.error("Checklist sync failed", e));
+          .catch((e) => {
+            setPushSyncStatus("Checklist sync failed: " + e.message);
+            console.error("Checklist sync failed", e);
+          });
       }
     });
     const span = document.createElement("span");
