@@ -26,5 +26,16 @@
       }
     },
     "checklistComplete": false
+  },
+  "https://fcm.googleapis.com/fcm/send/c32d_84VQRM:APA91bHYyvj43oDW9m7YxrsK6uwwJjeNgWv436xvB6AMRczdhtcWqzQXLWzsxZIHwl6fplGqJMc9Vkhld0sMpTpfp3bJRJvpBFkfbGbuiRQcdfne744XBEYNtGiutjWQ_28E_bWT1kNk": {
+    "subscription": {
+      "endpoint": "https://fcm.googleapis.com/fcm/send/c32d_84VQRM:APA91bHYyvj43oDW9m7YxrsK6uwwJjeNgWv436xvB6AMRczdhtcWqzQXLWzsxZIHwl6fplGqJMc9Vkhld0sMpTpfp3bJRJvpBFkfbGbuiRQcdfne744XBEYNtGiutjWQ_28E_bWT1kNk",
+      "expirationTime": null,
+      "keys": {
+        "p256dh": "BIuT8hcIsGVsRzBL0BMiISxcHU8-FETi0en0pLDGePj-0GRp3EbJcdDZWCMu1rtn5ZgpOZ5g-Pyg_hiaUmK3ZtE",
+        "auth": "kJhAUCM_7oC1wn9L8ENIOA"
+      }
+    },
+    "checklistComplete": false
   }
 }
