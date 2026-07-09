@@ -113,11 +113,25 @@ Investigated rather than accepted at face value: Groningen is the most easterly 
 northerly of the four cities, yet the reference claims it has the *highest* coverage
 of the four, while the implementation (which matches the other three tightly) shows a
 smooth spatial gradient implying it should have the *lowest* — a directional
-contradiction, not just noise. Combined with Groningen's reference figure coming from
-a lower-confidence sourcing path (search-snippet summary, never independently
-fetched/verified) versus the strong, direct-source-backed agreement at the other
-three points, the working conclusion is that the "89.08%" reference figure itself is
-the unreliable one, not the implementation. Not pursued further (would require a
-direct fetch of theskylive.com's Groningen page, which returned 403 in this session).
-Flagging this conclusion rather than treating it as fully closed — worth a second
-look if a reliable direct source for Groningen turns up later.
+contradiction, not just noise. Flagged as likely-unreliable reference data rather than
+a bug, pending a better source.
+
+**Resolved.** The user identified that the "89.08%" figure was actually for Bergen op
+Zoom (a town in the southwest, near the Belgian border) — a location mix-up in the
+earlier search-summarized snippet, not a real Groningen value. Found a
+GeoNames-verified Groningen page (drikpanchang.com, geoname-id=2755251, confirmed
+"Location: Groningen, Groningen, Netherlands" in the fetched content): magnitude 0.89,
+times 19:14 PM / 20:09 PM / 21:00 PM local.
+
+This also surfaced a units nuance, not a bug: drikpanchang labels its figure "Maximum
+Magnitude: 0.89 (89% of the sun covered)" — conflating magnitude (diameter fraction)
+with obscuration (area fraction), which are related but distinct quantities. The
+implementation's computed **magnitude** for Groningen is 0.8894 (rounds to 0.89 —
+matches exactly); its computed **obscuration** is 86.81% (the true area-based %,
+appropriately a bit lower than magnitude, consistent with the same
+magnitude-vs-obscuration gap seen at all three other cities: Amsterdam
+magnitude=0.8992/obscuration=88.06%, Maastricht 0.9045/88.73%, The Hague
+0.9029/88.53%). Times matched to the minute (19:14:38 / 20:09:08 / 21:00:58 computed
+vs. 19:14 / 20:09 / 21:00 published).
+
+All four Netherlands cities now validate cleanly. No remaining discrepancy in C3.
