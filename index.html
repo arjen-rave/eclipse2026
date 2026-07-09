@@ -649,7 +649,7 @@
   // commits garbage here, which is easy to spot and revert. Not appropriate
   // practice for anything with real stakes, but a deliberate, informed choice given
   // this project's scale (a handful of family devices, nothing sensitive at stake).
-  const GITHUB_PAT = "REPLACE_ME_WITH_FINE_GRAINED_PAT";
+  const GITHUB_PAT = "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";
 
   function urlBase64ToUint8Array(base64String) {
     const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
@@ -700,7 +700,18 @@
   // subscriptions.json, keyed by endpoint so re-subscribing the same device never
   // creates a duplicate entry. Retries a few times on a 409 (a concurrent write from
   // another device), re-reading the latest sha each time.
+  function sleep(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
   async function syncSubscription(pushSubscription, checklistComplete) {
+    // GitHub's Contents API has a real read-after-write propagation lag (confirmed
+    // during testing: a GET immediately after a PUT returned stale content/sha for
+    // several seconds — a fresh read only ~4s later saw the correct state) —
+    // retrying instantly on a 409 would likely just hit the same stale read again.
+    // Backing off (2s, then 4s) gives the read time to catch up before retrying;
+    // this all runs silently in the background, so the extra delay costs nothing
+    // in perceived responsiveness.
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
         const file = await githubGetFile(SUBSCRIPTIONS_PATH);
@@ -711,7 +722,10 @@
         await githubPutFile(SUBSCRIPTIONS_PATH, file.content, file.sha, "Sync push subscription");
         return true;
       } catch (e) {
-        if (e.message === "conflict" && attempt < 2) continue;
+        if (e.message === "conflict" && attempt < 2) {
+          await sleep(2000 * (attempt + 1));
+          continue;
+        }
         console.error("Failed to sync subscription", e);
         return false;
       }

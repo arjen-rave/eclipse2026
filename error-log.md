@@ -288,3 +288,31 @@ Still needed before this is real (tracked as F3b–F5b): user creates the fine-g
 PAT and pastes it in; VAPID keys added as Actions repo secrets; a `workflow_dispatch`
 test run to confirm the whole loop actually works against GitHub's live
 infrastructure, including a real push notification arriving on the phone.
+
+## F3b — Live GitHub API test with the real PAT
+
+User created the fine-grained PAT (had to regenerate once — first attempt had the
+wrong expiration date) and provided it; embedded in `index.html` in place of the
+placeholder.
+
+**Bug found and fixed via live testing against the real API (not mocked):** ran a
+real GET → PUT → GET → PUT → GET sequence against the actual `subscriptions.json` in
+the repo (writing a harmless test entry, then cleaning it up). The GET immediately
+following the first PUT returned **stale** content/sha — GitHub's Contents API has a
+real read-after-write propagation lag (a fresh read ~4 seconds later showed the
+correct state). This caused a 409 on the cleanup PUT, correctly caught by the
+existing conflict-detection, but `syncSubscription`'s retry loop had no delay between
+attempts, so rapid retries would likely keep hitting the same stale read and never
+succeed. Fixed by backing off 2s then 4s between retries — costs nothing in
+perceived responsiveness since this all runs silently in the background. Manually
+cleaned up the test entry in the live repo via direct `curl` calls (confirmed
+`subscriptions.json` sha matches its pre-test state exactly).
+
+Re-verified after the fix: no console errors on load. Not yet re-run against the live
+API after the backoff change specifically (the original bug was reproduced and
+understood, and the fix is a straightforward backoff-delay addition) — full
+confidence will come from the F4b/F5b `workflow_dispatch` test.
+
+Still open: confirm `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY` have actually been added
+as GitHub Actions repository secrets (asked, not yet confirmed) before attempting a
+`workflow_dispatch` test run.

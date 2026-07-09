@@ -96,8 +96,10 @@ around (unused) rather than silently deleted.
         created at repo root
   - [x] F2b — Wire client: push subscription + GitHub Contents API sync
         (`syncSubscription`), on subscribe / every app open / every checklist change
-  - [ ] F3b — User creates the fine-grained GitHub PAT + adds VAPID_PUBLIC_KEY/
-        VAPID_PRIVATE_KEY as Actions repo secrets; PAT gets pasted into `index.html`
+  - [x] F3b — Fine-grained GitHub PAT created (Contents read/write, this repo only)
+        and embedded in `index.html`; live-tested against the real GitHub API
+        (round-trip GET/PUT verified, test entry cleaned up). VAPID secrets in
+        Actions still needs confirming — see next step.
   - [ ] F4b — Test via manual `workflow_dispatch` trigger; verify a subscribe
         actually lands in `subscriptions.json`, and Day-3 correctly skips a
         subscriber whose checklist is complete
