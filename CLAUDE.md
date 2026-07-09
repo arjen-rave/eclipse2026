@@ -43,11 +43,32 @@ around (unused) rather than silently deleted.
   dependency. Committing state to the repo instead means there's no "redeploy wipes
   local disk" risk at all (there's no deploy — commits are the only mutation), so
   this concern from the Render-based design is moot now, not just mitigated.
-- **Known, accepted security trade-off**: the client embeds a GitHub fine-grained PAT
-  (scoped to only this repo, Contents read/write) directly in `index.html`, visible
-  to anyone who views page source. Blast radius is limited to this one already-public
-  hobby repo. Not appropriate for anything with real stakes — a deliberate, informed
-  choice given this project's scale (a handful of family devices).
+- **Superseded again: embedding a raw GitHub PAT client-side does not work.**
+  Tried exactly that (a fine-grained PAT, scoped to only this repo, Contents
+  read/write, embedded in `index.html`) — GitHub's secret scanning automatically
+  revokes any GitHub PAT (classic or fine-grained) it detects committed to a public
+  repository. This isn't a one-off mistake fixable by regenerating the token: it's a
+  standing, always-on security feature (GitHub is the registered "partner" for its
+  own token format, so it can revoke on sight), confirmed by testing — the token
+  worked in live testing, then returned 401 shortly after being pushed and
+  auto-allowed past push-protection. Regenerating would just get revoked again.
+- **Current design: a Cloudflare Worker as a write-proxy.** The client no longer
+  talks to GitHub's Contents API directly. Instead it calls a small Cloudflare
+  Worker (free tier, no persistent process — invoked on-demand), which holds the
+  real GitHub PAT as a Cloudflare-encrypted secret (never in any git repo, never
+  sent to any browser, so GitHub's scanner has nothing to find) and performs the
+  actual `subscriptions.json` read/write server-side. The client authenticates to
+  the Worker with a separate, narrow-scope shared secret (not a GitHub-formatted
+  token, so it won't trigger GitHub's auto-revocation) — this secret IS visible in
+  page source, same accepted trade-off as before, but its blast radius is much
+  smaller: it only lets someone trigger the one operation the Worker allows
+  (upsert a subscription entry), not full repository access.
+- Why not a hosted KV store (e.g. Redis) instead: user preference to avoid another
+  external dependency where avoidable — moot for the GitHub-Actions send/schedule
+  side (state lives in the repo, no server, no redeploy-wipes-disk risk), but the
+  PAT-exposure problem specifically requires *some* place to hide a real credential
+  from public view, which a Worker (not a persistent server) is the smallest way to
+  do given the GitHub-side constraint just discovered.
 
 ## Features
 1. Countdown to local eclipse **maximum** (big display) + T-30/T-5 min live-GPS
@@ -96,10 +117,15 @@ around (unused) rather than silently deleted.
         created at repo root
   - [x] F2b — Wire client: push subscription + GitHub Contents API sync
         (`syncSubscription`), on subscribe / every app open / every checklist change
-  - [x] F3b — Fine-grained GitHub PAT created (Contents read/write, this repo only)
-        and embedded in `index.html`; live-tested against the real GitHub API
-        (round-trip GET/PUT verified, test entry cleaned up). VAPID secrets in
-        Actions still needs confirming — see next step.
+  - [x] ~~F3b — Embed a fine-grained GitHub PAT directly in `index.html`~~ —
+        **abandoned**: worked in live testing, then GitHub auto-revoked it once
+        pushed (secret scanning revokes any exposed GitHub PAT on sight, in public
+        repos, regardless of push-protection bypass). Confirmed on-device: a real
+        subscribe attempt failed with "GitHub GET failed: 401" — the token was
+        already dead. See "Reminder architecture decision" in this file.
+  - [ ] F3c — Build a Cloudflare Worker as a write-proxy: real GitHub PAT lives only
+        as a Cloudflare secret; client authenticates to the Worker with a separate,
+        narrow-scope shared secret instead
   - [ ] F4b — Test via manual `workflow_dispatch` trigger; verify a subscribe
         actually lands in `subscriptions.json`, and Day-3 correctly skips a
         subscriber whose checklist is complete

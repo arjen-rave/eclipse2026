@@ -355,3 +355,42 @@ DevTools needed. Bumped `CACHE_NAME` to `eclipse2026-v10`.
 
 Not yet re-tested on-device with this change — next step is to have the user tap
 "Enable notifications" again and report exactly what `#pushSyncStatus` shows.
+
+## Architecture pivot #2 — client-side GitHub PAT abandoned, moving to Cloudflare Worker
+
+The visible-status fix worked exactly as intended: user did a full clean reinstall
+(uninstalled app, cleared cookies/site data, reinstalled, re-enabled notifications),
+got a fresh permission prompt, and `#pushSyncStatus` immediately showed the real
+problem instead of silence: **"Sync failed: GitHub GET failed: 401."**
+
+Verified directly (not assumed): re-ran the exact same token that had worked during
+F3b's live GET/PUT test — now returns 401 from a plain `curl` call too, confirming
+the token itself is dead, not a phone-specific issue.
+
+Root cause (confirmed via research, not guessed): GitHub's secret scanning
+automatically revokes any GitHub personal access token — classic or fine-grained —
+that it detects committed to a public repository. This is a standing, always-on
+security feature; GitHub is the registered "partner" for its own token format, so it
+revokes on sight. Critically, this is **separate** from push protection: approving
+the "allow this secret" bypass only lets the specific push through — it does not
+stop the ongoing secret-scanning-alert system from revoking the token shortly after.
+Regenerating and re-embedding a new token would just get revoked again on the next
+push. This makes "embed a raw GitHub PAT in client-side code of a public repo" a
+structurally non-viable design, not a one-off mistake to patch.
+
+Discussed the fix directly with the user rather than silently picking an approach:
+laid out three options (a small serverless write-proxy, e.g. Cloudflare Worker; a
+different anonymous-write storage service; or dropping automatic client-side writes
+entirely in favor of manual one-time additions per family member). User asked
+specifically whether the Cloudflare Worker option is free and safe before deciding —
+confirmed: free tier (100k requests/day, vastly more than this app needs, no card
+required) and, on safety, explained why it's actually an improvement over the PAT
+approach: the real GitHub PAT would live only as a Cloudflare-encrypted secret
+(never in any git repo, never sent to a browser, so GitHub's scanner never sees it),
+and the client would instead hold a separate, narrow-scope shared secret whose blast
+radius is limited to the one operation the Worker exposes (upserting a subscription
+entry), not full repository access. User approved proceeding with this approach.
+
+Docs (this file and CLAUDE.md's "Reminder architecture decision") updated to reflect
+the pivot before starting the Worker implementation, per user's explicit request to
+keep the docs in sync with the current approach as it changes.
