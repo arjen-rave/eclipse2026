@@ -18,15 +18,36 @@ once into `besselian-2026-08-12.js`) — no live API, works offline. See the pla
 for the full rationale and the rejected alternatives (hosted API, hardcoded fixed
 location).
 
-## Push-server storage decision
-`push-server/` stores subscriber + reminder state in a local JSON file (no hosted
-KV store like Redis) — a deliberate choice, since the user preferred not to add
-another external dependency. Real risk: only a *redeploy of the server code* wipes
-this file (Render's free-tier sleep/wake does not); this is mitigated by having the
-client re-sync its subscription and checklist status on every app open, so any
-data lost to a redeploy self-heals the next time the app is opened, well before the
-next reminder is due — as long as server code isn't touched again right up against a
-reminder's fire time.
+## Reminder architecture decision (superseded once, now server-less)
+Originally built as a Node/Express server on Render (`push-server/`, Milestone F1) —
+**replaced entirely** with a server-less design: GitHub Actions does both the
+scheduling and the sending, with `subscriptions.json` and `sent-log.json` (repo root)
+as the only state, committed directly to this repo instead of living on a hosted
+server. See `push-server/ARCHIVED-not-used.md` for why the old approach is kept
+around (unused) rather than silently deleted.
+
+- **Client** (`index.html`): writes its push subscription + current
+  `isChecklistComplete()` status directly into `subscriptions.json` via GitHub's
+  Contents API (`syncSubscription`/`githubGetFile`/`githubPutFile`), keyed by
+  subscription endpoint (dedupes re-subscribes). Re-syncs on every app open and
+  whenever the checklist changes — this is what makes state loss self-healing (see
+  below), and also how the Day-3 reminder finds out whether to skip a subscriber.
+- **Sending** (`.github/workflows/send-reminders.yml` +
+  `.github/scripts/send-reminders.js`): a scheduled workflow (no persistent process)
+  reads `subscriptions.json`/`sent-log.json` straight from the checked-out repo,
+  sends any due-and-unresolved reminder via `web-push`, and commits the updated
+  state back. Runs twice a day (08:00 and 16:00 UTC = 10:00/18:00 CEST) — day-level
+  granularity is enough for these four reminders, unlike the client-side T-30/T-5
+  alerts (unaffected by any of this, still entirely client-side).
+- **Why no hosted KV store (e.g. Redis)**: user preference to avoid another external
+  dependency. Committing state to the repo instead means there's no "redeploy wipes
+  local disk" risk at all (there's no deploy — commits are the only mutation), so
+  this concern from the Render-based design is moot now, not just mitigated.
+- **Known, accepted security trade-off**: the client embeds a GitHub fine-grained PAT
+  (scoped to only this repo, Contents read/write) directly in `index.html`, visible
+  to anyone who views page source. Blast radius is limited to this one already-public
+  hobby repo. Not appropriate for anything with real stakes — a deliberate, informed
+  choice given this project's scale (a handful of family devices).
 
 ## Features
 1. Countdown to local eclipse **maximum** (big display) + T-30/T-5 min live-GPS
@@ -39,7 +60,8 @@ reminder's fire time.
 4. Camera "find the sun" aiming aid (compass + sun-position overlay) — explicitly
    not an astrophotography tool, no zoom.
 5. Multi-stage reminders: Day-7, Day-3 (conditional on checklist), Day-1, Day-of
-   10:00 local via server push; T-30/T-5 via client-side local notifications.
+   10:00 local via push, sent by a GitHub Actions workflow (no server — see
+   "Reminder architecture decision"); T-30/T-5 via client-side local notifications.
 
 ## Key modules (deliberately not shared/duplicated — see plan's "No-duplication list")
 - Countdown/tick engine: `Date.now()`-delta + `fired`-Set pattern (from CrossFitTimer).
@@ -64,15 +86,21 @@ reminder's fire time.
   - [x] C4 — Wire into UI (geolocation + manual override, Coverage tab, real countdown target)
 - [x] D — Safety checklist
 - [ ] E — Camera "find the sun" aid
-- [ ] F — Server-side reminders (Render + GitHub Actions trigger) — built before E,
-      per user request, since E is standalone
-  - [x] F1 — Write push-server code (`push-server/`: stateless `/check-reminders`,
-        `/sync`, `/status`, `/vapid-public-key`; local JSON storage, no new external
-        dependency per user preference)
-  - [ ] F2 — Deploy to Render (same account as Jess app's push-server)
-  - [ ] F3 — Wire client: push subscription, sync-on-every-open (subscription +
-        checklist status), so server data loss on redeploy self-heals
-  - [ ] F4 — GitHub Actions workflow to ping `/check-reminders` periodically
-  - [ ] F5 — Compressed end-to-end test (fake near-term schedule), incl. Day-3
-        correctly skipping when checklist already complete
+- [ ] F — Server-less reminders (GitHub Actions does scheduling + sending; repo files
+      are the only state) — built before E, per user request, since E is standalone
+  - [x] ~~F1 — Write push-server code (Render/Express)~~ — **archived**, replaced by
+        the server-less design below (see `push-server/ARCHIVED-not-used.md`)
+  - [x] F1b — Write `.github/workflows/send-reminders.yml` +
+        `.github/scripts/send-reminders.js` (reads/sends/commits state directly in
+        the checked-out repo, no server); `subscriptions.json`/`sent-log.json`
+        created at repo root
+  - [x] F2b — Wire client: push subscription + GitHub Contents API sync
+        (`syncSubscription`), on subscribe / every app open / every checklist change
+  - [ ] F3b — User creates the fine-grained GitHub PAT + adds VAPID_PUBLIC_KEY/
+        VAPID_PRIVATE_KEY as Actions repo secrets; PAT gets pasted into `index.html`
+  - [ ] F4b — Test via manual `workflow_dispatch` trigger; verify a subscribe
+        actually lands in `subscriptions.json`, and Day-3 correctly skips a
+        subscriber whose checklist is complete
+  - [ ] F5b — Confirm push notification actually arrives on the phone from a real
+        `workflow_dispatch` run (not just that the workflow completes without error)
 - [ ] G — Full dry-run rehearsal (mandatory before 12 Aug 2026)

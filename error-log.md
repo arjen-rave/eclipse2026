@@ -226,3 +226,65 @@ parser) via pip and syntax-checked `server.js` — passes. `package.json` valida
 well-formed JSON. Logic was reviewed carefully by hand but has NOT been executed —
 real verification will happen once deployed (Milestone F2) and exercised end-to-end
 (Milestone F5).
+
+## Architecture pivot — F1 (Render) replaced with server-less GitHub Actions design
+
+Before deploying F1's server, the user directed a full replacement: drop Render
+entirely, have GitHub Actions do both scheduling and sending, with subscriber list +
+sent-state living as JSON files committed to the repo instead of on a hosted server.
+
+**Discrepancy flagged and resolved before proceeding:** the redesign spec stated Day-3
+had "already" been made unconditional (checklist-independent) "per the earlier
+decision," but no such decision existed in this conversation — the checklist-
+conditional Day-3 behavior was explicitly requested by the user and built in
+Milestone D. Raised this directly rather than silently picking either interpretation.
+User clarified: they'd only dropped conditionality because they thought it required
+Render specifically — confirmed it doesn't, and kept Day-3 conditional using the same
+GitHub-file approach (subscription entries carry a `checklistComplete` field the
+Actions script checks).
+
+Archived (not deleted) the F1 Express server: `push-server/server.js`,
+`package.json`, `.gitignore`, `.env.example` removed, replaced with
+`push-server/ARCHIVED-not-used.md` explaining the pivot, per user instruction not to
+leave dead code without a clear marker.
+
+Built: `.github/workflows/send-reminders.yml` (schedule: twice daily, 08:00 + 16:00
+UTC = 10:00/18:00 CEST, with the offset reasoning commented since GitHub Actions cron
+is UTC-only and DST-unaware; plus `workflow_dispatch` for manual testing) and
+`.github/scripts/send-reminders.js` (reads `subscriptions.json`/`sent-log.json` from
+the checked-out repo, Amsterdam-calendar-date due-check via `Intl`, per-subscriber
+catch-up-safe sent tracking, commits state back). Reused the F1 VAPID keys rather
+than regenerating (moved private key from a Render env var to a GitHub Actions repo
+secret).
+
+Client (`index.html`): added `githubGetFile`/`githubPutFile`/`syncSubscription`
+(GitHub Contents API, upsert-by-endpoint, retry-on-409) and `subscribeToPush`
+(PushManager, VAPID key). Wired into: the "Enable notifications" button, an
+on-load re-sync if already subscribed, and the checklist checkbox handler (so
+`checklistComplete` in `subscriptions.json` stays current for Day-3's check). GitHub
+fine-grained PAT embedded client-side per user's explicit, informed choice — flagged
+with a code comment about the trade-off (visible in page source, blast radius
+limited to this one public hobby repo).
+
+No errors encountered. Verified without a real PAT/Node (neither available/usable
+yet — Node.js *is* available on GitHub's own Actions runners, just not in this local
+dev environment, so `send-reminders.js`'s real execution will happen there rather
+than locally):
+- Syntax-checked `send-reminders.js` with esprima (passes) and the workflow YAML
+  with PyYAML (parses correctly — noting PyYAML's own YAML-1.1 quirk of reading the
+  `on:` key as boolean `True`, which is a parser-side artifact only, not a real issue
+  for GitHub's actual workflow parser).
+- Headless-Chrome tests against the real page code (not reimplemented logic):
+  `utf8ToBase64`/`base64ToUtf8` round-trip correctly; `urlBase64ToUint8Array` decodes
+  the real VAPID public key to exactly 65 bytes starting with `0x04` (correct
+  uncompressed EC point format for `applicationServerKey`).
+- Mocked `fetch` to exercise `syncSubscription`'s actual control flow end-to-end:
+  upserting a new device, adding a second device without clobbering the first,
+  re-syncing an existing device's `checklistComplete` without creating a duplicate
+  entry, and a simulated 409 conflict correctly triggering a retry that then
+  succeeds.
+
+Still needed before this is real (tracked as F3b–F5b): user creates the fine-grained
+PAT and pastes it in; VAPID keys added as Actions repo secrets; a `workflow_dispatch`
+test run to confirm the whole loop actually works against GitHub's live
+infrastructure, including a real push notification arriving on the phone.

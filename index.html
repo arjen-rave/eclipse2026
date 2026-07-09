@@ -631,6 +631,106 @@
   setInterval(tick, 250); // Date.now()-delta based inside tick(), so this stays
                           // accurate even if the tab is throttled in the background.
 
+  // ---- Push subscription + GitHub-committed reminder registry (Milestone F) ----
+  // No server: subscriptions.json (repo root) is written directly via GitHub's
+  // Contents API from this client, and .github/workflows/send-reminders.yml reads
+  // it straight from the checked-out repo to decide what's due and sends via
+  // web-push. sent-log.json (also repo root) tracks what's already been resolved,
+  // so re-syncing here never causes a duplicate send.
+  const VAPID_PUBLIC_KEY = "BIzxNwaMKp1v6UiyeB-qABYkzkbtMNY__57L3lU2c_FqGV9gBKa-84NT9ctDDi36cyFzkMvDFjZs1Rbq6mI9-Dw";
+  const GITHUB_REPO = "arjen-rave/eclipse2026";
+  const SUBSCRIPTIONS_PATH = "subscriptions.json";
+  // Fine-grained GitHub PAT, scoped to ONLY this one repository, with Contents:
+  // read-and-write and no other permission. TRADE-OFF, accepted deliberately: this
+  // token is visible to anyone who views the page source or inspects network
+  // requests, and Contents:write covers the whole repo (GitHub's fine-grained
+  // tokens don't scope permissions to individual files within a repo). Blast
+  // radius is limited to this one already-public hobby repo — worst case someone
+  // commits garbage here, which is easy to spot and revert. Not appropriate
+  // practice for anything with real stakes, but a deliberate, informed choice given
+  // this project's scale (a handful of family devices, nothing sensitive at stake).
+  const GITHUB_PAT = "REPLACE_ME_WITH_FINE_GRAINED_PAT";
+
+  function urlBase64ToUint8Array(base64String) {
+    const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+    const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+    const raw = atob(base64);
+    const output = new Uint8Array(raw.length);
+    for (let i = 0; i < raw.length; i++) output[i] = raw.charCodeAt(i);
+    return output;
+  }
+  function utf8ToBase64(str) {
+    return btoa(unescape(encodeURIComponent(str)));
+  }
+  function base64ToUtf8(str) {
+    return decodeURIComponent(escape(atob(str)));
+  }
+
+  async function githubGetFile(filePath) {
+    const res = await fetch("https://api.github.com/repos/" + GITHUB_REPO + "/contents/" + filePath, {
+      headers: { Authorization: "Bearer " + GITHUB_PAT, Accept: "application/vnd.github+json" },
+    });
+    if (res.status === 404) return { content: {}, sha: null };
+    if (!res.ok) throw new Error("GitHub GET failed: " + res.status);
+    const data = await res.json();
+    return { content: JSON.parse(base64ToUtf8(data.content.replace(/\n/g, ""))), sha: data.sha };
+  }
+
+  async function githubPutFile(filePath, contentObj, sha, message) {
+    const res = await fetch("https://api.github.com/repos/" + GITHUB_REPO + "/contents/" + filePath, {
+      method: "PUT",
+      headers: {
+        Authorization: "Bearer " + GITHUB_PAT,
+        Accept: "application/vnd.github+json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(
+        Object.assign(
+          { message: message, content: utf8ToBase64(JSON.stringify(contentObj, null, 2) + "\n") },
+          sha ? { sha: sha } : {}
+        )
+      ),
+    });
+    if (res.status === 409) throw new Error("conflict");
+    if (!res.ok) throw new Error("GitHub PUT failed: " + res.status);
+    return res.json();
+  }
+
+  // Upserts this device's push subscription (+ current checklist status) into
+  // subscriptions.json, keyed by endpoint so re-subscribing the same device never
+  // creates a duplicate entry. Retries a few times on a 409 (a concurrent write from
+  // another device), re-reading the latest sha each time.
+  async function syncSubscription(pushSubscription, checklistComplete) {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const file = await githubGetFile(SUBSCRIPTIONS_PATH);
+        file.content[pushSubscription.endpoint] = {
+          subscription: pushSubscription.toJSON(),
+          checklistComplete: !!checklistComplete,
+        };
+        await githubPutFile(SUBSCRIPTIONS_PATH, file.content, file.sha, "Sync push subscription");
+        return true;
+      } catch (e) {
+        if (e.message === "conflict" && attempt < 2) continue;
+        console.error("Failed to sync subscription", e);
+        return false;
+      }
+    }
+  }
+
+  async function subscribeToPush() {
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) return null;
+    const reg = await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) {
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+      });
+    }
+    return sub;
+  }
+
   // ---- Notification permission ----
   const notifyBtn = document.getElementById("notifyBtn");
   function refreshNotifyBtn() {
@@ -648,10 +748,26 @@
   }
   notifyBtn.addEventListener("click", async () => {
     if (!("Notification" in window)) return;
-    await Notification.requestPermission();
+    const permission = await Notification.requestPermission();
     refreshNotifyBtn();
+    if (permission === "granted") {
+      try {
+        const sub = await subscribeToPush();
+        if (sub) await syncSubscription(sub, isChecklistComplete());
+      } catch (e) {
+        console.error("Push subscription failed", e);
+      }
+    }
   });
   refreshNotifyBtn();
+
+  // Re-sync on every app open if already subscribed (self-healing — see the
+  // "Push-server storage decision" note in CLAUDE.md for why this matters here).
+  if ("Notification" in window && Notification.permission === "granted") {
+    subscribeToPush()
+      .then((sub) => sub && syncSubscription(sub, isChecklistComplete()))
+      .catch((e) => console.error("Re-sync on load failed", e));
+  }
 
   // ---- Debug controls (remove before 12 Aug 2026 — see plan risk #5) ----
   // Jumps relative to START (ec.startTimeUTC), matching what the T-30/T-5 alerts
@@ -849,8 +965,9 @@
     }
   }
 
-  // Exposed for Milestone F (server-side Day-3 reminder needs to know whether the
-  // checklist is complete before deciding to send its nag).
+  // Used by Milestone F: whenever this changes, the current value gets synced into
+  // subscriptions.json (via syncSubscription above) so the Day-3 reminder workflow
+  // knows whether to skip a subscriber who's already fully checked off.
   function isChecklistComplete() {
     const state = loadChecklistState();
     return CHECKLIST_ITEMS.every((item) => state[item.id]);
@@ -881,6 +998,13 @@
       saveChecklistState(checklistState);
       li.classList.toggle("checked", checkbox.checked);
       renderChecklistProgress();
+      // Keep the repo-committed record current, but only if already subscribed —
+      // don't force a subscription just because the checklist changed.
+      if ("Notification" in window && Notification.permission === "granted") {
+        subscribeToPush()
+          .then((sub) => sub && syncSubscription(sub, isChecklistComplete()))
+          .catch((e) => console.error("Checklist sync failed", e));
+      }
     });
     const span = document.createElement("span");
     span.textContent = item.label;

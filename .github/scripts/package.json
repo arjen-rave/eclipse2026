@@ -1,0 +1,9 @@
+{
+  "name": "eclipse2026-reminder-script",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Runs inside the send-reminders GitHub Actions workflow — checks subscriptions.json/sent-log.json (both at the repo root) and sends any due push reminders.",
+  "dependencies": {
+    "web-push": "^3.6.7"
+  }
+}
