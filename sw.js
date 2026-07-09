@@ -2,7 +2,7 @@
 // file as changed, run the update lifecycle, and purge the previous cache. Without a
 // change here, Chrome won't even notice a new service worker exists (it byte-diffs
 // this file), so old cached content keeps being served indefinitely.
-const CACHE_NAME = "eclipse2026-v12";
+const CACHE_NAME = "eclipse2026-v13";
 const CORE_ASSETS = [
   "./",
   "./index.html",
@@ -32,6 +32,26 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   event.respondWith(
     caches.match(event.request).then((cached) => cached || fetch(event.request))
+  );
+});
+
+// Displays a real push message sent by .github/scripts/send-reminders.js (or the
+// Cloudflare Worker's test path) via web-push. Without this listener, an incoming
+// 'push' event is silently dropped — the send itself can succeed (the push service
+// accepts the payload) while nothing ever appears on screen, since displaying it is
+// this service worker's job, not the sender's.
+self.addEventListener("push", (event) => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch (e) {
+    data = { title: "Eclipse reminder", body: event.data ? event.data.text() : "" };
+  }
+  event.waitUntil(
+    self.registration.showNotification(data.title || "Eclipse reminder", {
+      body: data.body || "",
+      icon: "icons/icon-192.png",
+    })
   );
 });
 

@@ -455,3 +455,40 @@ errors on load, bumped `CACHE_NAME` to `eclipse2026-v12`.
 
 Still open: real on-device test (tap "Enable notifications" on the phone, confirm a
 real subscription — not a curl test one — lands in `subscriptions.json`).
+
+## F4b — First workflow_dispatch test-send: real bug found (no `push` listener)
+
+User confirmed a real subscription synced ("Synced ✓" on-screen), and two genuine
+`fcm.googleapis.com` push endpoints showed up in `subscriptions.json`. Ran the new
+`test_send` mode via manual `workflow_dispatch` — user reported nothing arrived.
+
+Couldn't fetch the run's raw logs via the API myself (403 "Must have admin rights" —
+no write-level token available, by design after the PAT pivot), so had the user
+copy/paste the "Run reminder check" step's output directly. That log was the key
+diagnostic: **"Test send: 4 subscriber(s) found... sent=1/4"**, with explicit failure
+reasons for the other 3 (the leftover `TEST-DELETE-ME` entry lacking real keys, and
+two now-stale subscriptions returning 410 Gone — likely from earlier
+uninstall/reinstall cycles during the debugging sessions, leaving orphaned entries
+`test_send` mode deliberately doesn't clean up).
+
+The 1/4 success was the real signal: a push message WAS accepted by Google's FCM for
+a currently-valid subscription, yet the user still saw nothing. Root cause: **`sw.js`
+had no `push` event listener at all.** Milestone B's local T-30/T-5 notifications
+call `showNotification()` directly from an open page — a fundamentally different
+mechanism from a real push arriving via the browser's Push API, which is delivered to
+the service worker as a `'push'` event regardless of whether the page is open, and
+requires an explicit listener to actually display anything. Without one, a
+successfully-delivered push is silently dropped with no error anywhere in the chain
+(the sender sees success because the push *service* accepted it; nothing further is
+sender-visible). This was a genuine implementation gap from Milestone F, not
+introduced by the Worker pivot.
+
+Fixed: added a `push` listener to `sw.js` that parses the JSON payload
+(`{title, body}`, matching what `send-reminders.js` and the Worker's test path
+already send) and calls `self.registration.showNotification(...)`, with a plain-text
+fallback if JSON parsing fails. Bumped `CACHE_NAME` to `eclipse2026-v13`.
+
+Not yet re-verified on-device — next step is another `test_send` workflow_dispatch
+run (after the user reloads the app to pick up the new service worker) to confirm a
+notification actually appears this time. Also still pending: user cleanup of the
+`TEST-DELETE-ME` and two stale FCM entries in `subscriptions.json`.

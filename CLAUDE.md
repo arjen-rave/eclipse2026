@@ -127,9 +127,11 @@ around (unused) rather than silently deleted.
         `WORKER_URL` wired into `index.html`. Live-tested via `curl` (not mocked):
         Worker returned `{"ok":true}` and the write landed correctly in
         `subscriptions.json`. Client no longer holds any GitHub credential at all.
-  - [ ] F4b — Test via manual `workflow_dispatch` trigger; verify a subscribe
-        actually lands in `subscriptions.json`, and Day-3 correctly skips a
-        subscriber whose checklist is complete
-  - [ ] F5b — Confirm push notification actually arrives on the phone from a real
-        `workflow_dispatch` run (not just that the workflow completes without error)
+  - [x] F4b — Real subscription confirmed landing in `subscriptions.json`; first
+        `test_send` `workflow_dispatch` run found a real bug (see F5b)
+  - [ ] F5b — **Bug found and fixed:** `sw.js` had no `push` event listener at all,
+        so a push accepted by FCM (confirmed: 1/4 test sends succeeded server-side)
+        was silently never displayed. Added the listener, bumped `CACHE_NAME` to
+        `eclipse2026-v13` — **not yet re-verified on-device**. Also still pending:
+        user to clean up the stale/test entries in `subscriptions.json`.
 - [ ] G — Full dry-run rehearsal (mandatory before 12 Aug 2026)
