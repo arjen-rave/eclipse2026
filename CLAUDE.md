@@ -129,9 +129,14 @@ around (unused) rather than silently deleted.
         `subscriptions.json`. Client no longer holds any GitHub credential at all.
   - [x] F4b — Real subscription confirmed landing in `subscriptions.json`; first
         `test_send` `workflow_dispatch` run found a real bug (see F5b)
-  - [ ] F5b — **Bug found and fixed:** `sw.js` had no `push` event listener at all,
-        so a push accepted by FCM (confirmed: 1/4 test sends succeeded server-side)
-        was silently never displayed. Added the listener, bumped `CACHE_NAME` to
-        `eclipse2026-v13` — **not yet re-verified on-device**. Also still pending:
-        user to clean up the stale/test entries in `subscriptions.json`.
-- [ ] G — Full dry-run rehearsal (mandatory before 12 Aug 2026)
+  - [x] F5b — Fixed the missing `push` listener (see above); user confirmed a real
+        notification now displays correctly from a `test_send` run, **both with the
+        app backgrounded and fully closed**. Still open, deliberately deferred to
+        Milestone G rather than tested now: the Day-3 checklist-conditional *skip*
+        logic specifically — `test_send` bypasses all conditions, and force-testing
+        a real dated reminder via `workflow_dispatch` would mark it "resolved" in
+        `sent-log.json` for real, with no safe way to undo that (no GitHub write
+        access held anymore). Also still pending: user cleanup of stale/test
+        entries in `subscriptions.json` (cosmetic, not blocking).
+- [ ] G — Full dry-run rehearsal (mandatory before 12 Aug 2026) — must include
+      verifying Day-3's checklist-conditional skip specifically (see F5b note)
