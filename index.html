@@ -218,6 +218,66 @@
     padding: 0.35rem 0.6rem;
     font-size: 0.7rem;
   }
+
+  #useLocationBtn, #setManualLocationBtn, #changeLocationBtn {
+    background: var(--accent);
+    color: var(--bg);
+    border: none;
+    border-radius: 999px;
+    padding: 0.55rem 1rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+  #changeLocationBtn {
+    background: var(--border);
+    color: var(--text);
+    margin-top: 1rem;
+    font-weight: 400;
+  }
+  .manual-location-row {
+    display: flex;
+    gap: 0.5rem;
+  }
+  .manual-location-row input {
+    flex: 1;
+    min-width: 0;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 8px;
+    padding: 0.5rem;
+    font-size: 0.85rem;
+  }
+  .manual-location-row button {
+    flex-shrink: 0;
+  }
+  .coverage-pct {
+    text-align: center;
+    font-size: 3rem;
+    font-weight: 700;
+    color: var(--accent);
+    font-variant-numeric: tabular-nums;
+  }
+  .coverage-sub {
+    text-align: center;
+    color: var(--muted);
+    margin-top: -0.5rem;
+  }
+  .coverage-times {
+    list-style: none;
+    padding: 0;
+    margin: 1rem 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .coverage-times li {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.6rem 0.8rem;
+    font-size: 0.85rem;
+  }
 </style>
 </head>
 <body>
@@ -250,9 +310,9 @@
     <details class="debug">
       <summary>Debug (remove before 12 Aug 2026)</summary>
       <div class="debug-buttons">
-        <button id="dbgT31">Jump to T&minus;31 min</button>
-        <button id="dbgT6">Jump to T&minus;6 min</button>
-        <button id="dbgT1">Jump to T&minus;1 min</button>
+        <button id="dbgT31">T&minus;31 min before start</button>
+        <button id="dbgT6">T&minus;6 min before start</button>
+        <button id="dbgT1">T&minus;1 min before start</button>
         <button id="dbgReset">Reset</button>
       </div>
     </details>
@@ -260,8 +320,27 @@
 
   <section class="panel" id="panel-coverage">
     <h2>Coverage at your location</h2>
-    <p>Your location's predicted % of the sun covered, and local start/maximum/end
-      times, will appear here.</p>
+
+    <div id="locationControls">
+      <button id="useLocationBtn">Use my location</button>
+      <p style="font-size:0.75rem; color:var(--muted); margin: 0.9rem 0 0.35rem;">
+        Or enter coordinates manually:
+      </p>
+      <div class="manual-location-row">
+        <input type="number" id="manualLat" placeholder="Latitude, e.g. 52.37" step="0.0001" />
+        <input type="number" id="manualLon" placeholder="Longitude, e.g. 4.90" step="0.0001" />
+        <button id="setManualLocationBtn">Set</button>
+      </div>
+      <p id="locationStatus" style="font-size:0.75rem; color:var(--muted); min-height:1em;"></p>
+    </div>
+
+    <div id="coverageResult" style="display:none;">
+      <div class="coverage-pct" id="coveragePct">--%</div>
+      <p class="coverage-sub" id="coverageLabel"></p>
+      <ul class="coverage-times" id="coverageTimes"></ul>
+      <button id="changeLocationBtn">Change location</button>
+    </div>
+
     <span class="placeholder-tag">Built in Milestone C</span>
   </section>
 
@@ -295,6 +374,7 @@
   </button>
 </nav>
 
+<script src="besselian-2026-08-12.js"></script>
 <script>
   // Tab navigation
   const tabs = document.querySelectorAll("nav .tab");
@@ -356,9 +436,13 @@
   // Reused as-is by Milestone C, which only swaps ec.targetUTC for the real
   // location-derived time. Not rebuilt there.
   const ec = {
-    // Placeholder target (evening, per the known evening-not-midday timing for this
-    // eclipse) — replaced with the real computed local-maximum time in Milestone C.
+    // Placeholder times (evening, per the known evening-not-midday timing for this
+    // eclipse) — replaced with real Milestone C values once a location is known.
+    // targetUTC drives the main countdown display (counts down to MAXIMUM eclipse).
+    // startTimeUTC drives the T-30/T-5 alerts (referenced to eclipse START, not
+    // maximum — per user request, so as not to miss the actual start of the event).
     targetUTC: new Date("2026-08-12T19:00:00Z"),
+    startTimeUTC: new Date("2026-08-12T19:00:00Z"),
     fired: new Set(),
     simulatedOffsetMs: 0, // debug-only; always 0 in real use
   };
@@ -376,7 +460,7 @@
   const targetLabel = document.getElementById("targetLabel");
   const alertBanners = document.getElementById("alertBanners");
 
-  targetLabel.textContent = "Counting down to " + formatLocal(ec.targetUTC) + " (placeholder)";
+  targetLabel.textContent = "Counting down to eclipse maximum — " + formatLocal(ec.targetUTC) + " (placeholder)";
 
   function renderCountdown(msRemaining) {
     const clamped = Math.max(0, msRemaining);
@@ -438,13 +522,15 @@
     }
   }
 
-  function checkThresholds(msRemaining) {
-    const minsRemaining = msRemaining / 60000;
-    if (minsRemaining <= 30 && minsRemaining > 0 && !ec.fired.has("t30")) {
+  // Referenced to eclipse START (ec.startTimeUTC), not maximum — a T-30/T-5 warning
+  // timed off the maximum would fire far too late and risk missing the actual start.
+  function checkThresholds(now) {
+    const minsToStart = (ec.startTimeUTC.getTime() - now.getTime()) / 60000;
+    if (minsToStart <= 30 && minsToStart > 0 && !ec.fired.has("t30")) {
       ec.fired.add("t30");
       fireAlert("Get ready — eclipse starts in 30 minutes. Test your camera and grab your glasses.");
     }
-    if (minsRemaining <= 5 && minsRemaining > 0 && !ec.fired.has("t5")) {
+    if (minsToStart <= 5 && minsToStart > 0 && !ec.fired.has("t5")) {
       ec.fired.add("t5");
       fireAlert("Almost time — get in position. Eclipse starts in 5 minutes.");
     }
@@ -452,9 +538,9 @@
 
   function tick() {
     const now = ecNow();
-    const msRemaining = ec.targetUTC.getTime() - now.getTime();
+    const msRemaining = ec.targetUTC.getTime() - now.getTime(); // display -> maximum
     renderCountdown(msRemaining);
-    checkThresholds(msRemaining);
+    checkThresholds(now); // alerts -> start
   }
   tick();
   setInterval(tick, 250); // Date.now()-delta based inside tick(), so this stays
@@ -483,8 +569,10 @@
   refreshNotifyBtn();
 
   // ---- Debug controls (remove before 12 Aug 2026 — see plan risk #5) ----
-  function debugJumpTo(minutesRemaining) {
-    const desiredNow = ec.targetUTC.getTime() - minutesRemaining * 60000;
+  // Jumps relative to START (ec.startTimeUTC), matching what the T-30/T-5 alerts
+  // actually reference — not the displayed countdown-to-maximum target.
+  function debugJumpTo(minutesBeforeStart) {
+    const desiredNow = ec.startTimeUTC.getTime() - minutesBeforeStart * 60000;
     ec.simulatedOffsetMs = desiredNow - Date.now();
     tick();
   }
@@ -497,6 +585,105 @@
     alertBanners.innerHTML = "";
     tick();
   });
+
+  // ---- Location + coverage (Milestone C4) ----
+  const LOCATION_KEY = "ec_location";
+
+  function loadStoredLocation() {
+    try {
+      const raw = localStorage.getItem(LOCATION_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) {
+      return null;
+    }
+  }
+  function saveLocation(loc) {
+    try {
+      localStorage.setItem(LOCATION_KEY, JSON.stringify(loc));
+    } catch (e) {
+      console.error("Could not save location", e);
+    }
+  }
+
+  const locationControls = document.getElementById("locationControls");
+  const coverageResult = document.getElementById("coverageResult");
+  const coveragePct = document.getElementById("coveragePct");
+  const coverageLabel = document.getElementById("coverageLabel");
+  const coverageTimes = document.getElementById("coverageTimes");
+  const locationStatus = document.getElementById("locationStatus");
+
+  function applyLocation(loc) {
+    saveLocation(loc);
+    const lc = EclipseMath.localCircumstances(loc.lat, loc.lon, loc.elevM || 0);
+
+    locationControls.style.display = "none";
+    coverageResult.style.display = "block";
+
+    if (!lc.visible) {
+      coveragePct.textContent = "0%";
+      coverageLabel.textContent = "The eclipse isn't visible from this location.";
+      coverageTimes.innerHTML = "";
+      return;
+    }
+
+    coveragePct.textContent = lc.peakObscurationPct.toFixed(0) + "%";
+    coverageLabel.textContent = "of the sun covered at maximum";
+    coverageTimes.innerHTML =
+      "<li>Start: " + formatLocal(lc.firstContactUTC) + "</li>" +
+      "<li>Maximum: " + formatLocal(lc.peakTimeUTC) + "</li>" +
+      "<li>End: " + formatLocal(lc.lastContactUTC) + "</li>";
+
+    // Feed the countdown/alert engine: main countdown -> maximum (per user request),
+    // T-30/T-5 alerts -> start (so as not to miss the actual start of the eclipse).
+    ec.targetUTC = lc.peakTimeUTC;
+    ec.startTimeUTC = lc.firstContactUTC;
+    targetLabel.textContent = "Counting down to eclipse maximum — " + formatLocal(ec.targetUTC);
+    tick();
+  }
+
+  document.getElementById("useLocationBtn").addEventListener("click", () => {
+    if (!("geolocation" in navigator)) {
+      locationStatus.textContent = "Geolocation isn't available on this device — enter coordinates manually.";
+      return;
+    }
+    locationStatus.textContent = "Getting your location…";
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        locationStatus.textContent = "";
+        applyLocation({
+          lat: pos.coords.latitude,
+          lon: pos.coords.longitude,
+          elevM: pos.coords.altitude || 0,
+          source: "geo",
+        });
+      },
+      (err) => {
+        locationStatus.textContent = "Couldn't get your location (" + err.message + ") — enter coordinates manually below.";
+      },
+      { enableHighAccuracy: false, timeout: 10000 }
+    );
+  });
+
+  document.getElementById("setManualLocationBtn").addEventListener("click", () => {
+    const lat = parseFloat(document.getElementById("manualLat").value);
+    const lon = parseFloat(document.getElementById("manualLon").value);
+    if (Number.isNaN(lat) || Number.isNaN(lon)) {
+      locationStatus.textContent = "Enter a valid latitude and longitude.";
+      return;
+    }
+    locationStatus.textContent = "";
+    applyLocation({ lat, lon, elevM: 0, source: "manual" });
+  });
+
+  document.getElementById("changeLocationBtn").addEventListener("click", () => {
+    coverageResult.style.display = "none";
+    locationControls.style.display = "block";
+  });
+
+  // Auto-apply a previously chosen location, so returning users don't need to
+  // re-enter it every time they open the app.
+  const storedLocation = loadStoredLocation();
+  if (storedLocation) applyLocation(storedLocation);
 </script>
 
 </body>

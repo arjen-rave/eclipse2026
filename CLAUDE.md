@@ -19,7 +19,9 @@ for the full rationale and the rejected alternatives (hosted API, hardcoded fixe
 location).
 
 ## Features
-1. Countdown to local eclipse maximum + T-30/T-5 min live-GPS alerts (client-side).
+1. Countdown to local eclipse **maximum** (big display) + T-30/T-5 min live-GPS
+   alerts referenced to eclipse **start**, not maximum (per user request — a
+   start-time-referenced client so as not to miss the actual beginning of the event).
 2. Location-based coverage % (geolocation + manual override).
 3. Safety checklist (partial-eclipse only — glasses stay on at all times, no
    totality-style "safe to remove" window; phone needs its own solar filter too).
@@ -48,7 +50,7 @@ location).
   - [x] C2 — Implement `localCircumstances()` math + self-check vs. reference values
   - [x] C3 — Validate against real reference data for NL locations (Amsterdam,
         Groningen, Maastricht, The Hague)
-  - [ ] C4 — Wire into UI (geolocation + manual override, Coverage tab, real countdown target)
+  - [x] C4 — Wire into UI (geolocation + manual override, Coverage tab, real countdown target)
 - [ ] D — Safety checklist
 - [ ] E — Camera "find the sun" aid
 - [ ] F — Server-side reminders (Render + GitHub Actions trigger)

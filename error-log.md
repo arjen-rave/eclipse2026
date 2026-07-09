@@ -135,3 +135,25 @@ magnitude=0.8992/obscuration=88.06%, Maastricht 0.9045/88.73%, The Hague
 vs. 19:14 / 20:09 / 21:00 published).
 
 All four Netherlands cities now validate cleanly. No remaining discrepancy in C3.
+
+## Milestone C4 — Wire into UI
+
+No errors encountered. Added geolocation + manual lat/lon entry to the Coverage tab,
+wired to `EclipseMath.localCircumstances()`, with the location persisted to
+`localStorage` (`ec_location`) so it's remembered across visits. Per user request,
+split the countdown/alert engine's single target into two: `ec.targetUTC` (drives the
+main countdown display, set to eclipse **maximum**) and `ec.startTimeUTC` (drives the
+T-30/T-5 alerts, set to eclipse **start**) — previously both were the same value.
+Updated the debug jump buttons to reference start time too, since that's what the
+alerts actually key off.
+
+Verified end-to-end via a headless-Chrome iframe test driving the real page
+functions (not reimplemented test logic): for Amsterdam, coverage/times rendered
+correctly (88%, Start 19:16/Max 20:10/End 21:02 — matching the C3 validation exactly),
+and the debug jump sequence confirmed T-30/T-5 alerts fire relative to start (e.g.
+jumping to "31 min before start" correctly showed 1h25m remaining on the
+countdown-to-*maximum* display — 31 min to start plus the 54 min start-to-max gap —
+confirming the two references are properly independent) with no alerts fired too
+early and correct catch-up firing when skipping past a threshold. Added
+`besselian-2026-08-12.js` to the service worker's precache list and bumped
+`CACHE_NAME` to `eclipse2026-v5` accordingly.
