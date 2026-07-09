@@ -195,6 +195,34 @@ correctly. Bumped `CACHE_NAME` to `eclipse2026-v7` since `index.html` changed.
 stuck in `queued` status with "The job was not acquired by Runner of type hosted even
 after multiple attempts" — a transient GitHub Actions hosted-runner issue, confirmed
 via the Actions API (run stayed queued for 30+ minutes, unaffected by a manual
-re-run). Not caused by anything in this repo. Resolved by pushing this small
-documentation commit, which queues a brand-new deployment run separate from the
-stuck one.
+re-run). Turned out to be a real, ongoing GitHub-wide incident ("Delays starting
+Actions runs", confirmed via githubstatus.com), not caused by anything in this repo.
+Resolved on its own; a follow-up documentation commit's fresh deployment run
+succeeded once GitHub's backlog cleared.
+
+## Milestone F1 — Write push-server code
+
+No errors encountered. Built before Milestone E per user request (E is standalone,
+F has more moving parts worth getting started on). Generated VAPID keys via the Web
+Crypto API in headless Chrome (`crypto.subtle.generateKey` ECDSA P-256 + raw/JWK
+export), since no Node install was available locally to use `web-push`'s own
+key-generator CLI — verified the exported public key is exactly 65 bytes
+(uncompressed EC point) and the private key's JWK `d` field is the expected 32-byte
+base64url scalar, matching what `web-push` expects.
+
+Storage design (discussed with user): local JSON file, not a hosted KV store, per
+user's preference to avoid another external dependency — see CLAUDE.md's "Push-server
+storage decision" for the risk analysis and the sync-on-every-open mitigation.
+
+Reminder times (Day-7/-3/-1/day-of) are fixed global constants in `server.js`, not
+computed/sent by the client — since they're calendar-fixed and not location-specific,
+hardcoding them server-side (as verified-safe UTC instants, with a comment on the
+CEST/no-DST-transition assumption for early August 2026) is simpler and removes a
+class of potential client-side timezone bugs.
+
+Could not run/test the server locally (no Node/npm/npx found on this machine).
+Mitigated as best as possible without execution: installed `esprima` (pure-Python JS
+parser) via pip and syntax-checked `server.js` — passes. `package.json` validated as
+well-formed JSON. Logic was reviewed carefully by hand but has NOT been executed —
+real verification will happen once deployed (Milestone F2) and exercised end-to-end
+(Milestone F5).

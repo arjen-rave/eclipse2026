@@ -18,6 +18,16 @@ once into `besselian-2026-08-12.js`) — no live API, works offline. See the pla
 for the full rationale and the rejected alternatives (hosted API, hardcoded fixed
 location).
 
+## Push-server storage decision
+`push-server/` stores subscriber + reminder state in a local JSON file (no hosted
+KV store like Redis) — a deliberate choice, since the user preferred not to add
+another external dependency. Real risk: only a *redeploy of the server code* wipes
+this file (Render's free-tier sleep/wake does not); this is mitigated by having the
+client re-sync its subscription and checklist status on every app open, so any
+data lost to a redeploy self-heals the next time the app is opened, well before the
+next reminder is due — as long as server code isn't touched again right up against a
+reminder's fire time.
+
 ## Features
 1. Countdown to local eclipse **maximum** (big display) + T-30/T-5 min live-GPS
    alerts referenced to eclipse **start**, not maximum (per user request — a
@@ -54,5 +64,15 @@ location).
   - [x] C4 — Wire into UI (geolocation + manual override, Coverage tab, real countdown target)
 - [x] D — Safety checklist
 - [ ] E — Camera "find the sun" aid
-- [ ] F — Server-side reminders (Render + GitHub Actions trigger)
+- [ ] F — Server-side reminders (Render + GitHub Actions trigger) — built before E,
+      per user request, since E is standalone
+  - [x] F1 — Write push-server code (`push-server/`: stateless `/check-reminders`,
+        `/sync`, `/status`, `/vapid-public-key`; local JSON storage, no new external
+        dependency per user preference)
+  - [ ] F2 — Deploy to Render (same account as Jess app's push-server)
+  - [ ] F3 — Wire client: push subscription, sync-on-every-open (subscription +
+        checklist status), so server data loss on redeploy self-heals
+  - [ ] F4 — GitHub Actions workflow to ping `/check-reminders` periodically
+  - [ ] F5 — Compressed end-to-end test (fake near-term schedule), incl. Day-3
+        correctly skipping when checklist already complete
 - [ ] G — Full dry-run rehearsal (mandatory before 12 Aug 2026)
