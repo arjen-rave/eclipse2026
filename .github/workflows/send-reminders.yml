@@ -10,7 +10,13 @@ on:
     #   16:00 UTC = 18:00 Amsterdam — catches the day-7/day-3/day-1 evening reminders
     - cron: "0 8 * * *"
     - cron: "0 16 * * *"
-  workflow_dispatch: {} # manual trigger, for testing now and for an emergency resend on the day
+  workflow_dispatch: # manual trigger, for testing now and for an emergency resend on the day
+    inputs:
+      test_send:
+        description: "Send a one-off test notification to every current subscriber. Does NOT touch sent-log.json — completely separate from the real reminder schedule, so this can be run as many times as needed without risk of marking a real reminder (e.g. Day-7) as already sent."
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -34,9 +40,14 @@ jobs:
         env:
           VAPID_PUBLIC_KEY: ${{ secrets.VAPID_PUBLIC_KEY }}
           VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+          TEST_SEND: ${{ inputs.test_send }}
         run: node send-reminders.js
 
+      # Skipped entirely for a test send — test mode never touches sent-log.json or
+      # subscriptions.json, so there's nothing to commit and no risk of a test run
+      # accidentally marking a real reminder (e.g. Day-7) as already sent.
       - name: Commit updated reminder state, if anything changed
+        if: ${{ inputs.test_send != true }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"

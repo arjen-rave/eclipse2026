@@ -316,3 +316,18 @@ confidence will come from the F4b/F5b `workflow_dispatch` test.
 Still open: confirm `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY` have actually been added
 as GitHub Actions repository secrets (asked, not yet confirmed) before attempting a
 `workflow_dispatch` test run.
+
+User confirmed both secrets added.
+
+## Test-mode addition, before the first workflow_dispatch run
+
+Realized before testing: running the real reminder-check logic via `workflow_dispatch`
+today (well before any of the Aug 2026 target dates) wouldn't test a real send at
+all — nothing would be "due" — and if it were forced to fire early by any means, it
+would mark that reminder resolved in `sent-log.json`, silently cancelling the real
+send on its actual date. Added a separate `test_send` workflow_dispatch input:
+when true, the script sends a fixed one-off test message to every current
+subscriber and exits, never touching `sent-log.json`/`subscriptions.json` — the
+workflow also skips its commit-back step entirely in this mode. Completely
+independent from the real reminder state machine, so it can be run as many times as
+needed with zero risk to the real schedule.

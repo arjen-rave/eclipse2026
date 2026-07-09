@@ -56,7 +56,35 @@ function amsterdamDateString(date) {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Amsterdam" }).format(date);
 }
 
+// Test mode (workflow_dispatch input `test_send`): sends a fixed one-off message to
+// every current subscriber, completely bypassing the date/condition/sent-tracking
+// logic below. Deliberately does NOT touch sentLog or subscriptions — so this can be
+// run as many times as needed while testing without any risk of marking a real
+// reminder (e.g. Day-7) as already resolved.
+async function testSend() {
+  const subscriptions = readJson(SUBSCRIPTIONS_FILE, {});
+  const endpoints = Object.keys(subscriptions);
+  console.log(`Test send: ${endpoints.length} subscriber(s) found.`);
+  let sent = 0;
+  for (const endpoint of endpoints) {
+    try {
+      await webpush.sendNotification(
+        subscriptions[endpoint].subscription,
+        JSON.stringify({ title: "Eclipse app test", body: "Test notification — if you see this, push delivery works!" })
+      );
+      sent++;
+    } catch (err) {
+      console.error("Test send failed for", endpoint, err && err.statusCode, err && err.message);
+    }
+  }
+  console.log(`Test send complete: sent=${sent}/${endpoints.length}`);
+}
+
 async function main() {
+  if (process.env.TEST_SEND === "true") {
+    return testSend();
+  }
+
   const subscriptions = readJson(SUBSCRIPTIONS_FILE, {});
   const sentLog = readJson(SENT_LOG_FILE, {});
   const today = amsterdamDateString(new Date());
