@@ -8,8 +8,11 @@
 // (e.g. IMCCE/HMNAO) has not been checked; flagged here in case that's wanted later,
 // but not treated as blocking since the two extractions already agree.
 //
-// This file is data only — no calculation logic. The local-circumstances algorithm
-// (Milestone C2) consumes these coefficients; it is not implemented here.
+// This file holds both the sourced coefficients and the local-circumstances math
+// that consumes them (Milestone C2), kept together per the plan's file structure —
+// isolated from the rest of the app (index.html) for auditability, and not shared
+// with Milestone E's generic sun-position code (different problem — see the plan's
+// "No-duplication list").
 //
 // Formula (per NASA's own notation): a(t) = a0 + a1*t + a2*t^2 + a3*t^3, where t is
 // decimal hours elapsed since t0, evaluated in TDT (Terrestrial Dynamical Time).
@@ -77,3 +80,174 @@ const BESSELIAN_2026_08_12 = {
     },
   },
 };
+
+// ---- Local-circumstances math (Milestone C2) ----
+// Standard Besselian-element algorithm for local circumstances of a solar eclipse
+// (Meeus, "Astronomical Algorithms", ch. 54 "Eclipses", combined with the observer
+// parallax-factor formulas from ch. 11 "Parallax") — the same method NASA/GSFC's own
+// eclipse predictions are built on. Depends only on BESSELIAN_2026_08_12 above.
+const EclipseMath = (() => {
+  const B = BESSELIAN_2026_08_12;
+  const DEG = Math.PI / 180;
+
+  // Reference ellipsoid constants matching the convention Besselian eclipse
+  // elements are computed on (Meeus ch. 11).
+  const EARTH_RADIUS_A_M = 6378140; // metres
+  const B_OVER_A = 0.99664719; // = sqrt(1 - e^2) for this reference ellipsoid
+
+  function poly(coeffs, t) {
+    let result = 0;
+    for (let i = 0; i < coeffs.length; i++) result += coeffs[i] * Math.pow(t, i);
+    return result;
+  }
+
+  // Interpolate all Besselian elements at time t (decimal TDT hours since t0).
+  function elementsAt(t) {
+    return {
+      x: poly(B.x, t),
+      y: poly(B.y, t),
+      d: poly(B.d, t) * DEG,
+      l1: poly(B.l1, t),
+      l2: poly(B.l2, t),
+      mu: poly(B.mu, t), // degrees
+    };
+  }
+
+  // Observer's geocentric parallax factors (rho*sin(phi'), rho*cos(phi')) — corrects
+  // for Earth's oblateness, which matters most at high latitude (this eclipse's path
+  // crosses Greenland/Iceland).
+  function observerGeocentric(latDeg, elevM) {
+    const phi = latDeg * DEG;
+    const u = Math.atan(B_OVER_A * Math.tan(phi));
+    const hOverA = elevM / EARTH_RADIUS_A_M;
+    return {
+      rhoSinPhi: B_OVER_A * Math.sin(u) + hOverA * Math.sin(phi),
+      rhoCosPhi: Math.cos(u) + hOverA * Math.cos(phi),
+    };
+  }
+
+  // Two-circle disk-overlap area, as a percentage of the sun's disk area.
+  function diskOverlapPct(sunR, moonR, d) {
+    if (d >= sunR + moonR) return 0; // no overlap — not visible from here at time t
+    if (d <= Math.abs(sunR - moonR)) {
+      // smaller disk entirely inside the larger one (total/annular at this instant)
+      const coveredR = Math.min(sunR, moonR);
+      return Math.min(100, ((coveredR * coveredR) / (sunR * sunR)) * 100);
+    }
+    const sunR2 = sunR * sunR;
+    const moonR2 = moonR * moonR;
+    const part1 = sunR2 * Math.acos((d * d + sunR2 - moonR2) / (2 * d * sunR));
+    const part2 = moonR2 * Math.acos((d * d + moonR2 - sunR2) / (2 * d * moonR));
+    const part3 =
+      0.5 *
+      Math.sqrt(
+        Math.max(
+          0,
+          (-d + sunR + moonR) * (d + sunR - moonR) * (d - sunR + moonR) * (d + sunR + moonR)
+        )
+      );
+    const area = part1 + part2 - part3;
+    return Math.max(0, Math.min(100, (area / (Math.PI * sunR2)) * 100));
+  }
+
+  // Evaluate magnitude + obscuration% at one instant t for one observer location.
+  function evaluateAt(t, latDeg, lonDeg, elevM) {
+    const el = elementsAt(t);
+    const { rhoSinPhi, rhoCosPhi } = observerGeocentric(latDeg, elevM);
+    // NOTE: classical H = mu - lambda formula uses lambda measured POSITIVE WEST
+    // (traditional astronomical convention, not the modern east-positive one) —
+    // confirmed empirically against NASA's own published greatest-eclipse point
+    // during Milestone C2 validation. lonDeg here is passed in as east-positive
+    // (i.e. Netherlands is positive, not negative), so this is mu + lonDeg.
+    const H = (el.mu + lonDeg) * DEG;
+
+    const xi = rhoCosPhi * Math.sin(H);
+    const eta = rhoSinPhi * Math.cos(el.d) - rhoCosPhi * Math.sin(el.d) * Math.cos(H);
+    const zeta = rhoSinPhi * Math.sin(el.d) + rhoCosPhi * Math.cos(el.d) * Math.cos(H);
+
+    const u = el.x - xi;
+    const v = el.y - eta;
+    const m = Math.sqrt(u * u + v * v);
+
+    const l1p = el.l1 - zeta * B.tanF1;
+    const l2p = el.l2 - zeta * B.tanF2;
+
+    const magnitude = (l1p - m) / (l1p + l2p);
+
+    // Sun/Moon apparent radii in the same fundamental-plane units, derived directly
+    // from l1'/l2' — not from the fixed k1/k2 constants (see comment on those above).
+    // This resolves that open question: k1/k2 turn out not to be needed at all.
+    const sunR = (l1p + l2p) / 2;
+    const moonR = (l1p - l2p) / 2;
+    const obscurationPct = diskOverlapPct(sunR, moonR, m);
+
+    return { magnitude, obscurationPct, m, l1p, l2p, sunR, moonR };
+  }
+
+  // Scan across the eclipse's valid time range to find first contact, last contact,
+  // and the moment/value of greatest eclipse (peak magnitude) at one location.
+  // Coarse fixed-step scan (10s resolution, ~2160 steps) — simple and fast enough;
+  // no iterative root-finding needed for this app's purposes.
+  function localCircumstances(latDeg, lonDeg, elevM) {
+    const stepHours = 10 / 3600; // 10-second steps
+    const tStart = B.validRange.minTdtHour - B.t0.tdtHourOfDay;
+    const tEnd = B.validRange.maxTdtHour - B.t0.tdtHourOfDay;
+
+    let visible = false;
+    let firstContactT = null;
+    let lastContactT = null;
+    let peakT = null;
+    let peakMagnitude = -Infinity;
+    let peakResult = null;
+    let prevVisible = false;
+
+    for (let t = tStart; t <= tEnd; t += stepHours) {
+      const result = evaluateAt(t, latDeg, lonDeg, elevM);
+      const nowVisible = result.magnitude > 0;
+      if (nowVisible && !prevVisible) firstContactT = t;
+      if (!nowVisible && prevVisible && lastContactT === null) lastContactT = t;
+      if (nowVisible) visible = true;
+      if (result.magnitude > peakMagnitude) {
+        peakMagnitude = result.magnitude;
+        peakT = t;
+        peakResult = result;
+      }
+      prevVisible = nowVisible;
+    }
+    if (prevVisible && lastContactT === null) lastContactT = tEnd; // still visible at range end
+
+    function tToUTC(t) {
+      if (t === null) return null;
+      const t0UTCms = Date.parse(B.t0.approxUTC);
+      return new Date(t0UTCms + t * 3600 * 1000);
+    }
+
+    return {
+      visible,
+      peakObscurationPct: visible ? peakResult.obscurationPct : 0,
+      peakMagnitude: visible ? peakMagnitude : 0,
+      peakTimeUTC: visible ? tToUTC(peakT) : null,
+      firstContactUTC: visible ? tToUTC(firstContactT) : null,
+      lastContactUTC: visible ? tToUTC(lastContactT) : null,
+    };
+  }
+
+  // Purely geometric self-check, independent of any observer location: the minimum
+  // distance (Earth radii) from the shadow axis to Earth's center, across the whole
+  // valid range — should match the published Gamma (0.8978) if x(t)/y(t) are
+  // interpolated correctly, regardless of the observer-parallax code path above.
+  function globalGreatestEclipse() {
+    const stepHours = 10 / 3600;
+    const tStart = B.validRange.minTdtHour - B.t0.tdtHourOfDay;
+    const tEnd = B.validRange.maxTdtHour - B.t0.tdtHourOfDay;
+    let best = { t: null, gamma: Infinity };
+    for (let t = tStart; t <= tEnd; t += stepHours) {
+      const el = elementsAt(t);
+      const gamma = Math.sqrt(el.x * el.x + el.y * el.y);
+      if (gamma < best.gamma) best = { t, gamma };
+    }
+    return best;
+  }
+
+  return { elementsAt, evaluateAt, diskOverlapPct, localCircumstances, globalGreatestEclipse };
+})();

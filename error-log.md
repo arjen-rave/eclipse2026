@@ -59,3 +59,38 @@ freshly verified against a formula this session) to be Moon/Earth radius ratios,
 the Moon/Sun angular-size ratio the obscuration-% formula needs — that should instead
 be derivable from l1(t)/l2(t) directly. C2 must validate this against the published
 magnitude (1.0386) before relying on it.
+
+## Milestone C2 — Implement `localCircumstances()` math
+
+One real bug found and fixed during self-checking, one residual discrepancy flagged
+(not blocking):
+
+1. **Longitude sign convention bug.** Initial implementation used the modern
+   east-positive longitude directly in `H = mu - lonDeg`. Self-check against NASA's
+   published greatest-eclipse point (65.225°N, -25.228°E) gave magnitude 0.8357
+   instead of the expected ~1.0386, and an Amsterdam test showed an implausible 93%
+   coverage. Root cause: the classical Besselian-element formula `H = mu - lambda`
+   uses lambda measured **positive west** (older astronomical convention), not the
+   modern east-positive convention this app uses everywhere else for geolocation.
+   Fixed by changing to `H = mu + lonDeg` (equivalent to subtracting the
+   west-positive value). Confirmed against real ground truth from timeanddate.com for
+   Amsterdam (published: 88.26% max coverage, start 19:16:05/max 20:10:56/end
+   21:03:03 CEST) — computed result: 88.06% coverage, peak time within 8 seconds of
+   the published maximum. Also confirmed the k1/k2 open question from C1: the
+   Moon/Sun ratio derived from l1'/l2' (not the published k1/k2 constants) is what's
+   used, and it produces correct results — k1/k2 are not needed by this
+   implementation.
+
+2. **Residual (flagged, not fixed): raw `magnitude` at the exact totality point
+   reads 1.0175, not the published 1.0386.** The location-independent Gamma check
+   (0.8978) passes exactly, and — more importantly for this app — obscuration%
+   correctly saturates to 100% at the totality point and matches real-world ground
+   truth almost exactly at a genuine partial-eclipse location (Amsterdam). Since the
+   Netherlands never reaches totality, `magnitude` will always stay below 1 there,
+   and the app only ever displays obscuration% (never raw magnitude), so this
+   discrepancy doesn't affect anything the app shows. Not fully root-caused — noted
+   here rather than silently dropped, in case it's worth revisiting later.
+
+Validation overlapped with what Milestone C3 was scoped to do (a real NL reference
+city, from timeanddate.com) — worth reviewing at C3 whether much further validation
+is still needed given this result.
