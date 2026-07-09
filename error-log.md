@@ -51,3 +51,11 @@ Parsed the resulting `besselian-2026-08-12.js` in headless Chrome to confirm it'
 syntactically valid and every value round-trips correctly through `JSON.stringify`.
 Not yet checked against a fully independent second publisher (e.g. IMCCE/HMNAO) —
 noted as non-blocking in the file's header comment, can revisit if wanted later.
+
+Follow-up: the user caught that NASA's page also publishes lunar radius constants k1
+(penumbra) and k2 (umbra), which hadn't been transcribed. Added them. Flagged an open
+question in the file for Milestone C2: k1/k2 are believed (standard convention, not
+freshly verified against a formula this session) to be Moon/Earth radius ratios, not
+the Moon/Sun angular-size ratio the obscuration-% formula needs — that should instead
+be derivable from l1(t)/l2(t) directly. C2 must validate this against the published
+magnitude (1.0386) before relying on it.

@@ -41,6 +41,27 @@ const BESSELIAN_2026_08_12 = {
   tanF1: 0.0046141, // penumbral cone half-angle tangent
   tanF2: 0.0045911, // umbral cone half-angle tangent
 
+  // "Lunar Radius Constants" as published by NASA/GSFC alongside the elements above.
+  // Confidence note (flagged, not silently assumed): these are understood to be
+  // Moon-radius / Earth-radius ratios (fixed physical constants used internally by
+  // Espenak to derive l1(t)/l2(t) above) — NOT the Moon/Sun apparent angular-radius
+  // ratio that a two-circle disk-overlap "obscuration %" calculation needs directly.
+  // That ratio is time-varying (Earth-Sun/Earth-Moon distances shift slightly across
+  // the ~3hr eclipse window) and should instead be derivable from l1(t) and l2(t)
+  // themselves, since l1 ∝ (sunRadius + moonRadius) and l2 ∝ (sunRadius - moonRadius)
+  // in the same fundamental-plane units — giving moonSunRatio(t) =
+  // (l1(t) - l2(t)) / (l1(t) + l2(t)). This is standard celestial-mechanics
+  // convention (Meeus/Chauvenet-style), but has NOT been freshly verified against an
+  // explicit published formula in this session (eclipsewise.com's explainer page was
+  // blocked, NASA's own explainer page doesn't spell out the derivation) — Milestone
+  // C2 must validate the derived ratio against the published magnitude (1.0386,
+  // implying the Moon is very slightly larger than the Sun for this eclipse) before
+  // relying on it. k1/k2 are kept here as published reference values in case they're
+  // still useful as a fallback or cross-check, not because C2 is committed to using
+  // them directly.
+  k1: 0.272488, // penumbra
+  k2: 0.272281, // umbra
+
   // Published alongside the elements — not location-specific, useful as a
   // sanity-check for the Milestone C2 implementation (not a substitute for the
   // location-specific validation against timeanddate.com planned for Milestone C3).
