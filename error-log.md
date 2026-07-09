@@ -394,3 +394,38 @@ entry), not full repository access. User approved proceeding with this approach.
 Docs (this file and CLAUDE.md's "Reminder architecture decision") updated to reflect
 the pivot before starting the Worker implementation, per user's explicit request to
 keep the docs in sync with the current approach as it changes.
+
+## F3c — Write the Cloudflare Worker + client changes
+
+No errors encountered. Wrote `cloudflare-worker/worker.js`: accepts POST requests
+authenticated with a shared `APP_SECRET` (Cloudflare secret, distinct from the real
+GitHub PAT, which is also a Cloudflare secret and never appears in the Worker's
+response or logs), validates the subscription payload, and performs the same
+upsert-by-endpoint + retry-on-409-with-2s/4s-backoff logic that used to live
+client-side, now server-side. Includes CORS headers (the client on
+`arjen-rave.github.io` calling a `*.workers.dev` origin is cross-origin) and handles
+the `OPTIONS` preflight.
+
+Client (`index.html`): `syncSubscription` now POSTs to the Worker instead of calling
+GitHub's Contents API directly; removed the now-unused `githubGetFile`/
+`githubPutFile`/`utf8ToBase64`/`base64ToUtf8` helpers and the dead embedded PAT.
+Generated a fresh random `WORKER_APP_SECRET` (via Web Crypto `crypto.randomUUID()`
+in headless Chrome, same technique used for the original VAPID keys) — this one
+still ends up visible in page source, but its blast radius is limited to the one
+operation the Worker exposes, not full repo access like the old PAT.
+
+Verified with a mocked `fetch` (real page code, not reimplemented logic): confirmed
+the Worker receives the correct `Authorization: Bearer <secret>` header and payload
+shape on a simulated success response, and that a simulated 401 (e.g. wrong secret)
+surfaces correctly via `#pushSyncStatus` ("Sync failed: worker returned 401:
+unauthorized") rather than failing silently.
+
+Wrote `cloudflare-worker/README.md` with dashboard-only setup steps (no
+Wrangler/Node needed, consistent with not having Node available in this dev
+environment — Cloudflare's browser-based "Quick Edit" editor sidesteps that
+entirely). Bumped `CACHE_NAME` to `eclipse2026-v11`.
+
+**Not yet deployed** — `WORKER_URL` in `index.html` is still a placeholder. Next:
+user creates the Worker via Cloudflare's dashboard, adds a fresh `GITHUB_PAT` (this
+one safe, since it only ever lives as a Cloudflare secret) and `APP_SECRET` as
+Worker secrets, and provides the deployed Worker's URL.

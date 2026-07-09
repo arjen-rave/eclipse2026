@@ -632,25 +632,27 @@
   setInterval(tick, 250); // Date.now()-delta based inside tick(), so this stays
                           // accurate even if the tab is throttled in the background.
 
-  // ---- Push subscription + GitHub-committed reminder registry (Milestone F) ----
-  // No server: subscriptions.json (repo root) is written directly via GitHub's
-  // Contents API from this client, and .github/workflows/send-reminders.yml reads
-  // it straight from the checked-out repo to decide what's due and sends via
-  // web-push. sent-log.json (also repo root) tracks what's already been resolved,
-  // so re-syncing here never causes a duplicate send.
+  // ---- Push subscription + reminder registry (Milestone F) ----
+  // subscriptions.json (repo root) is what .github/workflows/send-reminders.yml
+  // reads to decide what's due and send via web-push. sent-log.json (also repo
+  // root) tracks what's already been resolved, so re-syncing here never causes a
+  // duplicate send.
+  //
+  // The client does NOT write to GitHub directly (it used to — a fine-grained PAT
+  // embedded here worked in testing, then GitHub's secret scanning auto-revoked it
+  // within hours of being pushed, since GitHub revokes any exposed GitHub PAT in a
+  // public repo on sight, regardless of push-protection bypass). Instead this
+  // calls a small Cloudflare Worker (cloudflare-worker/worker.js) that holds the
+  // real GitHub PAT as a Cloudflare-encrypted secret — never in any git repo, never
+  // sent to a browser, so GitHub's scanner has nothing to find.
+  //
+  // WORKER_APP_SECRET below is still visible in page source (same accepted
+  // trade-off as before), but its blast radius is much smaller than a raw GitHub
+  // PAT: it only lets someone trigger the one operation the Worker exposes
+  // (upsert a subscription entry), not full repository access.
   const VAPID_PUBLIC_KEY = "BIzxNwaMKp1v6UiyeB-qABYkzkbtMNY__57L3lU2c_FqGV9gBKa-84NT9ctDDi36cyFzkMvDFjZs1Rbq6mI9-Dw";
-  const GITHUB_REPO = "arjen-rave/eclipse2026";
-  const SUBSCRIPTIONS_PATH = "subscriptions.json";
-  // Fine-grained GitHub PAT, scoped to ONLY this one repository, with Contents:
-  // read-and-write and no other permission. TRADE-OFF, accepted deliberately: this
-  // token is visible to anyone who views the page source or inspects network
-  // requests, and Contents:write covers the whole repo (GitHub's fine-grained
-  // tokens don't scope permissions to individual files within a repo). Blast
-  // radius is limited to this one already-public hobby repo — worst case someone
-  // commits garbage here, which is easy to spot and revert. Not appropriate
-  // practice for anything with real stakes, but a deliberate, informed choice given
-  // this project's scale (a handful of family devices, nothing sensitive at stake).
-  const GITHUB_PAT = "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";
+  const WORKER_URL = "REPLACE_ME_WITH_WORKER_URL";
+  const WORKER_APP_SECRET = "61a8c83d-3149-4350-bab5-fd8df7b79767d06bfb14-da02-44b6-a8e7-83cffef68dbb";
 
   function urlBase64ToUint8Array(base64String) {
     const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
@@ -660,89 +662,40 @@
     for (let i = 0; i < raw.length; i++) output[i] = raw.charCodeAt(i);
     return output;
   }
-  function utf8ToBase64(str) {
-    return btoa(unescape(encodeURIComponent(str)));
-  }
-  function base64ToUtf8(str) {
-    return decodeURIComponent(escape(atob(str)));
-  }
-
-  async function githubGetFile(filePath) {
-    const res = await fetch("https://api.github.com/repos/" + GITHUB_REPO + "/contents/" + filePath, {
-      headers: { Authorization: "Bearer " + GITHUB_PAT, Accept: "application/vnd.github+json" },
-    });
-    if (res.status === 404) return { content: {}, sha: null };
-    if (!res.ok) throw new Error("GitHub GET failed: " + res.status);
-    const data = await res.json();
-    return { content: JSON.parse(base64ToUtf8(data.content.replace(/\n/g, ""))), sha: data.sha };
-  }
-
-  async function githubPutFile(filePath, contentObj, sha, message) {
-    const res = await fetch("https://api.github.com/repos/" + GITHUB_REPO + "/contents/" + filePath, {
-      method: "PUT",
-      headers: {
-        Authorization: "Bearer " + GITHUB_PAT,
-        Accept: "application/vnd.github+json",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(
-        Object.assign(
-          { message: message, content: utf8ToBase64(JSON.stringify(contentObj, null, 2) + "\n") },
-          sha ? { sha: sha } : {}
-        )
-      ),
-    });
-    if (res.status === 409) throw new Error("conflict");
-    if (!res.ok) throw new Error("GitHub PUT failed: " + res.status);
-    return res.json();
-  }
-
-  // Upserts this device's push subscription (+ current checklist status) into
-  // subscriptions.json, keyed by endpoint so re-subscribing the same device never
-  // creates a duplicate entry. Retries a few times on a 409 (a concurrent write from
-  // another device), re-reading the latest sha each time.
-  function sleep(ms) {
-    return new Promise((resolve) => setTimeout(resolve, ms));
-  }
 
   // Visible status reporting — deliberately not console-only. A phone has no easy
   // way to view console output, and a silent console.error here is exactly the kind
   // of bug that was hard to diagnose earlier in this project (the Milestone B
-  // notification bug). Whatever happens during subscribe/sync should be readable
-  // directly off the screen.
+  // notification bug, and again while debugging the GitHub-PAT approach). Whatever
+  // happens during subscribe/sync should be readable directly off the screen.
   const pushSyncStatus = document.getElementById("pushSyncStatus");
   function setPushSyncStatus(text) {
     pushSyncStatus.textContent = text;
   }
 
   async function syncSubscription(pushSubscription, checklistComplete) {
-    // GitHub's Contents API has a real read-after-write propagation lag (confirmed
-    // during testing: a GET immediately after a PUT returned stale content/sha for
-    // several seconds — a fresh read only ~4s later saw the correct state) —
-    // retrying instantly on a 409 would likely just hit the same stale read again.
-    // Backing off (2s, then 4s) gives the read time to catch up before retrying;
-    // this all runs silently in the background, so the extra delay costs nothing
-    // in perceived responsiveness.
-    for (let attempt = 0; attempt < 3; attempt++) {
-      try {
-        const file = await githubGetFile(SUBSCRIPTIONS_PATH);
-        file.content[pushSubscription.endpoint] = {
+    try {
+      const res = await fetch(WORKER_URL, {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer " + WORKER_APP_SECRET,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
           subscription: pushSubscription.toJSON(),
           checklistComplete: !!checklistComplete,
-        };
-        await githubPutFile(SUBSCRIPTIONS_PATH, file.content, file.sha, "Sync push subscription");
-        setPushSyncStatus("Synced ✓");
-        return true;
-      } catch (e) {
-        if (e.message === "conflict" && attempt < 2) {
-          setPushSyncStatus("Retrying sync…");
-          await sleep(2000 * (attempt + 1));
-          continue;
-        }
-        console.error("Failed to sync subscription", e);
-        setPushSyncStatus("Sync failed: " + e.message);
-        return false;
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error("worker returned " + res.status + (data.error ? ": " + data.error : ""));
       }
+      setPushSyncStatus("Synced ✓");
+      return true;
+    } catch (e) {
+      console.error("Failed to sync subscription", e);
+      setPushSyncStatus("Sync failed: " + e.message);
+      return false;
     }
   }
 
