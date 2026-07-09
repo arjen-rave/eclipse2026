@@ -123,12 +123,10 @@ around (unused) rather than silently deleted.
         repos, regardless of push-protection bypass). Confirmed on-device: a real
         subscribe attempt failed with "GitHub GET failed: 401" — the token was
         already dead. See "Reminder architecture decision" in this file.
-  - [x] F3c — Write the Cloudflare Worker (`cloudflare-worker/worker.js`) + client
-        changes (`syncSubscription` now POSTs to the Worker, not GitHub directly).
-        Mocked-fetch tested (auth header, payload shape, success/error paths) —
-        **not yet deployed**: user still needs to create the Worker on Cloudflare's
-        dashboard, add a fresh `GITHUB_PAT` + `APP_SECRET` as Worker secrets, and
-        give the deployed Worker URL so `WORKER_URL`'s placeholder can be filled in
+  - [x] F3c — Write + deploy the Cloudflare Worker (`cloudflare-worker/worker.js`),
+        `WORKER_URL` wired into `index.html`. Live-tested via `curl` (not mocked):
+        Worker returned `{"ok":true}` and the write landed correctly in
+        `subscriptions.json`. Client no longer holds any GitHub credential at all.
   - [ ] F4b — Test via manual `workflow_dispatch` trigger; verify a subscribe
         actually lands in `subscriptions.json`, and Day-3 correctly skips a
         subscriber whose checklist is complete

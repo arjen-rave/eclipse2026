@@ -429,3 +429,29 @@ entirely). Bumped `CACHE_NAME` to `eclipse2026-v11`.
 user creates the Worker via Cloudflare's dashboard, adds a fresh `GITHUB_PAT` (this
 one safe, since it only ever lives as a Cloudflare secret) and `APP_SECRET` as
 Worker secrets, and provides the deployed Worker's URL.
+
+## Worker deployed — live end-to-end test
+
+User created the Worker via Cloudflare's "Hello World" starter template (the
+dashboard's Worker-creation flow offers GitHub/GitLab-connected, Hello World, a
+template gallery, or static-file-upload — "Hello World" is the right choice for a
+single hand-written Worker with no CI/CD needed), pasted in `worker.js`, added both
+secrets, and provided the deployed URL:
+`https://eclipse2026-subscribe.arjen-ravestein.workers.dev/`.
+
+No errors encountered. Verified with a real `curl` call (not mocked) before wiring
+into the client: POSTed a harmless test subscription with the real `APP_SECRET` —
+Worker returned `{"ok":true}` (HTTP 200), and `subscriptions.json` in the repo
+correctly showed the new entry moments later. Confirmed the Worker's own GitHub PAT
+works correctly for both read and write.
+
+One asymmetry worth noting: cleanup of the test entry now has to be done by the user
+directly (via GitHub's web editor) rather than by a follow-up API call from this
+session — I no longer hold any GitHub write credential myself, which is exactly the
+intended outcome of this whole pivot, not a gap.
+
+Wired the real Worker URL into `index.html` (`WORKER_URL`), verified no console
+errors on load, bumped `CACHE_NAME` to `eclipse2026-v12`.
+
+Still open: real on-device test (tap "Enable notifications" on the phone, confirm a
+real subscription — not a curl test one — lands in `subscriptions.json`).
