@@ -157,3 +157,18 @@ confirming the two references are properly independent) with no alerts fired too
 early and correct catch-up firing when skipping past a threshold. Added
 `besselian-2026-08-12.js` to the service worker's precache list and bumped
 `CACHE_NAME` to `eclipse2026-v5` accordingly.
+
+## Follow-up — Address/place search
+
+Per user request (wanting to preset a home address without knowing its coordinates),
+added address search using OpenStreetMap's free Nominatim geocoder — no API key
+needed. Only used at setup time to resolve an address to lat/lon; once resolved, it's
+cached identically to geolocation/manual entry, so the core no-network-at-eclipse-time
+requirement is unaffected. Added the required attribution text ("Location search by
+OpenStreetMap Nominatim") per Nominatim's usage policy.
+
+No errors encountered. Verified end-to-end via headless Chrome against the real
+Nominatim API (not mocked): searching "Groningen, Netherlands" returned 3 matches,
+selecting the first correctly resolved to 87% coverage with times matching the
+earlier-validated Groningen figures (19:14/20:09/21:00). Bumped `CACHE_NAME` to
+`eclipse2026-v6` since `index.html` changed.

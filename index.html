@@ -251,6 +251,24 @@
   .manual-location-row button {
     flex-shrink: 0;
   }
+  .address-results {
+    list-style: none;
+    padding: 0;
+    margin: 0.5rem 0 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+  .address-results li button {
+    width: 100%;
+    text-align: left;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 8px;
+    padding: 0.55rem 0.7rem;
+    font-size: 0.8rem;
+  }
   .coverage-pct {
     text-align: center;
     font-size: 3rem;
@@ -323,6 +341,17 @@
 
     <div id="locationControls">
       <button id="useLocationBtn">Use my location</button>
+
+      <p style="font-size:0.75rem; color:var(--muted); margin: 0.9rem 0 0.35rem;">
+        Or search for an address or place:
+      </p>
+      <div class="manual-location-row">
+        <input type="text" id="addressSearch" placeholder="e.g. your home address, or a town" />
+        <button id="addressSearchBtn">Search</button>
+      </div>
+      <ul class="address-results" id="addressResults"></ul>
+      <p style="font-size:0.7rem; color:var(--muted);">Location search by OpenStreetMap Nominatim</p>
+
       <p style="font-size:0.75rem; color:var(--muted); margin: 0.9rem 0 0.35rem;">
         Or enter coordinates manually:
       </p>
@@ -664,6 +693,54 @@
     );
   });
 
+  // Address/place search via OpenStreetMap's Nominatim geocoder (free, no API key).
+  // Only used at setup time to resolve an address to coordinates — once resolved,
+  // the location is cached exactly like geolocation/manual entry, so this doesn't
+  // add a network dependency to the actual eclipse-day calculations.
+  const addressResults = document.getElementById("addressResults");
+
+  async function searchAddress() {
+    const query = document.getElementById("addressSearch").value.trim();
+    addressResults.innerHTML = "";
+    if (!query) return;
+    locationStatus.textContent = "Searching…";
+    try {
+      const url =
+        "https://nominatim.openstreetmap.org/search?format=json&limit=5&q=" +
+        encodeURIComponent(query);
+      const res = await fetch(url, { headers: { Accept: "application/json" } });
+      if (!res.ok) throw new Error("status " + res.status);
+      const results = await res.json();
+      locationStatus.textContent = "";
+      if (!results.length) {
+        locationStatus.textContent = "No matches found — try a different search, or enter coordinates manually.";
+        return;
+      }
+      results.forEach((r) => {
+        const li = document.createElement("li");
+        const btn = document.createElement("button");
+        btn.textContent = r.display_name;
+        btn.addEventListener("click", () => {
+          addressResults.innerHTML = "";
+          document.getElementById("addressSearch").value = "";
+          applyLocation({ lat: parseFloat(r.lat), lon: parseFloat(r.lon), elevM: 0, source: "address" });
+        });
+        li.appendChild(btn);
+        addressResults.appendChild(li);
+      });
+    } catch (e) {
+      locationStatus.textContent = "Address search failed (" + e.message + ") — enter coordinates manually.";
+    }
+  }
+
+  document.getElementById("addressSearchBtn").addEventListener("click", searchAddress);
+  document.getElementById("addressSearch").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      searchAddress();
+    }
+  });
+
   document.getElementById("setManualLocationBtn").addEventListener("click", () => {
     const lat = parseFloat(document.getElementById("manualLat").value);
     const lon = parseFloat(document.getElementById("manualLon").value);
@@ -678,6 +755,8 @@
   document.getElementById("changeLocationBtn").addEventListener("click", () => {
     coverageResult.style.display = "none";
     locationControls.style.display = "block";
+    addressResults.innerHTML = "";
+    locationStatus.textContent = "";
   });
 
   // Auto-apply a previously chosen location, so returning users don't need to

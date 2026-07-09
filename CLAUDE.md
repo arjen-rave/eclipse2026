@@ -22,7 +22,8 @@ location).
 1. Countdown to local eclipse **maximum** (big display) + T-30/T-5 min live-GPS
    alerts referenced to eclipse **start**, not maximum (per user request — a
    start-time-referenced client so as not to miss the actual beginning of the event).
-2. Location-based coverage % (geolocation + manual override).
+2. Location-based coverage % (geolocation, address/place search via OpenStreetMap
+   Nominatim, or manual lat/lon override).
 3. Safety checklist (partial-eclipse only — glasses stay on at all times, no
    totality-style "safe to remove" window; phone needs its own solar filter too).
 4. Camera "find the sun" aiming aid (compass + sun-position overlay) — explicitly
