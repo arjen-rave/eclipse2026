@@ -48,5 +48,11 @@
       }
     },
     "checklistComplete": false
+  },
+  "https://example.com/UNSUB-TEST": {
+    "subscription": {
+      "endpoint": "https://example.com/UNSUB-TEST"
+    },
+    "checklistComplete": false
   }
 }
