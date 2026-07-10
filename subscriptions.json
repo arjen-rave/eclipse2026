@@ -53,6 +53,6 @@
     "subscription": {
       "endpoint": "https://example.com/UNSUB-TEST"
     },
-    "checklistComplete": true
+    "checklistComplete": false
   }
 }
