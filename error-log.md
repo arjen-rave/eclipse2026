@@ -550,3 +550,37 @@ push subscription (via Worker)" commit, and the test entry was confirmed gone fr
 `subscriptions.json`. User then confirmed on the real device: the button correctly
 toggles to "Disable notifications" when subscribed, unsubscribing shows
 "Unsubscribed ✓," and re-subscribing afterward works cleanly.
+
+## Milestone H1 — Layout redesign, first piece (location header + modal)
+
+User wants the 4-tab layout condensed to 2 (info + camera), designed incrementally
+rather than all at once. First piece: moved the Coverage tab's content out of the
+tab bar entirely, into a persistent header showing either "Location not set yet" or
+the coverage summary, with "Set location" (opens a modal overlay containing the
+existing geolocation/address-search/manual-entry controls) and "Clear location"
+(wipes the stored location and resets the countdown to its placeholder) buttons.
+Asked the user to choose modal-vs-full-screen for the picker before building (with
+mockup previews) — modal overlay was the choice.
+
+No errors encountered, but this was a large-enough restructure (moving markup out of
+one panel into a new header + modal, removing a nav tab, removing several elements
+whose JS references would otherwise throw on a null lookup) that it warranted
+thorough verification before considering it done:
+- Syntax-checked the inline script after every major edit.
+- Headless-Chrome load test confirmed the new nav has exactly 3 tabs, the header
+  correctly starts in the "not set" state, and the modal starts hidden.
+- Headless-Chrome flow test (real page code, not reimplemented logic) drove the
+  actual sequence: open modal → apply a location → confirms the modal auto-closes,
+  the header switches to the coverage summary (88% for the Amsterdam test point,
+  consistent with all earlier validation), and the countdown updates → clear →
+  confirms it reverts to "not set," the countdown returns to the placeholder value,
+  and `localStorage` is actually cleared → reopen modal → click the dimmed backdrop
+  (not the content box) → confirms that closes it too.
+- Found and removed now-dead code during the restructure: a `#changeLocationBtn`
+  click handler and CSS rule referencing an element that no longer exists (would
+  have thrown on `getElementById(...).addEventListener` at load time if left in —
+  caught by the syntax/load checks before it ever reached the user).
+
+Bumped `CACHE_NAME` to `eclipse2026-v15`. Further tab consolidation (toward the
+final 2-tab layout) intentionally left for the next incremental step, per the
+user's explicit one-at-a-time preference.

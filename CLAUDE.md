@@ -91,10 +91,17 @@ around (unused) rather than silently deleted.
 - Generic solar azimuth/altitude (Meeus ch. 25): Milestone E only, not shared with C.
 - Timezone/DST: one shared `Europe/Amsterdam` conversion utility via `Intl`.
 
-## Future UI considerations (not now — revisit once all 4 features are built)
-- Possibly condense the 4 bottom tabs (Countdown/Coverage/Checklist/Camera) into
-  fewer screens once real content is in place — deferred until Milestones B-E are
-  done and there's real content to judge the layout against.
+## Layout redesign (Milestone H, in progress)
+User wants the 4-tab layout condensed to 2 tabs (info + camera check), redesigned
+incrementally, one decision at a time, rather than all at once.
+
+**H1 — done:** Coverage is no longer its own tab. It's now a persistent header (not
+inside any tab) showing either "Location not set yet" or the coverage summary
+(% + start/max/end times) for whichever location is currently set, with "Set
+location" (opens the location-picker as a modal overlay) and "Clear location"
+(wipes stored location, resets countdown to placeholder) buttons underneath. Nav is
+down to 3 tabs (Countdown, Checklist, Camera) as an intermediate step — further
+consolidation toward 2 tabs is still to come, one piece at a time as the user directs.
 
 ## Milestone status
 - [x] A — PWA skeleton & install
@@ -144,5 +151,7 @@ around (unused) rather than silently deleted.
         confirmed the commit message and that the entry was actually gone) before
         asking for on-device confirmation — user confirmed the button toggles
         correctly and re-subscribing afterward also works.
+- [ ] H — Layout redesign (4 tabs → 2 tabs), in progress — see "Layout redesign" above
+  - [x] H1 — Coverage moved from a tab to a persistent header + location-picker modal
 - [ ] G — Full dry-run rehearsal (mandatory before 12 Aug 2026) — must include
       verifying Day-3's checklist-conditional skip specifically (see F5b note)
