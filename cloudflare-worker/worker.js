@@ -103,6 +103,7 @@ export default {
 
     const subscription = body && body.subscription;
     const checklistComplete = body && body.checklistComplete;
+    const unsubscribe = !!(body && body.unsubscribe);
     if (!subscription || !subscription.endpoint) {
       return jsonResponse({ error: "missing subscription" }, 400);
     }
@@ -113,11 +114,21 @@ export default {
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
         const file = await githubGetFile(env.GITHUB_PAT, SUBSCRIPTIONS_PATH);
-        file.content[subscription.endpoint] = {
-          subscription: subscription,
-          checklistComplete: !!checklistComplete,
-        };
-        await githubPutFile(env.GITHUB_PAT, SUBSCRIPTIONS_PATH, file.content, file.sha, "Sync push subscription (via Worker)");
+        if (unsubscribe) {
+          delete file.content[subscription.endpoint];
+        } else {
+          file.content[subscription.endpoint] = {
+            subscription: subscription,
+            checklistComplete: !!checklistComplete,
+          };
+        }
+        await githubPutFile(
+          env.GITHUB_PAT,
+          SUBSCRIPTIONS_PATH,
+          file.content,
+          file.sha,
+          unsubscribe ? "Remove push subscription (via Worker)" : "Sync push subscription (via Worker)"
+        );
         return jsonResponse({ ok: true }, 200);
       } catch (e) {
         if (e.message === "conflict" && attempt < 2) {

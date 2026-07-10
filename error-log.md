@@ -492,3 +492,54 @@ Not yet re-verified on-device — next step is another `test_send` workflow_disp
 run (after the user reloads the app to pick up the new service worker) to confirm a
 notification actually appears this time. Also still pending: user cleanup of the
 `TEST-DELETE-ME` and two stale FCM entries in `subscriptions.json`.
+
+**Follow-up:** user confirmed the fix — real push notification now displays
+correctly, both with the app backgrounded and fully closed.
+
+## Follow-ups: unsubscribe option + reminder timing confirmation
+
+User confirmed the Day-7/-3/-1/day-of clock times (18:00/18:00/18:00/10:00 CEST) as
+fine, no changes needed. Also asked for an unsubscribe option and raised the pending
+layout redesign — agreed layout is a separate milestone (not folded into F or G), and
+unsubscribe is an F follow-up.
+
+**Unsubscribe implementation:**
+- `cloudflare-worker/worker.js`: POST body now accepts an `unsubscribe` boolean;
+  when true, the Worker deletes (rather than upserts) the subscriber's entry from
+  `subscriptions.json`, reusing the same retry/backoff logic.
+- `index.html`: refactored the GitHub-calling code into a shared `callWorker(...)`
+  helper used by both `syncSubscription` and the new `unsubscribeFromPush()`.
+  Captured the subscription's JSON *before* calling the browser's
+  `sub.unsubscribe()` (rather than after), since a torn-down `PushSubscription`
+  object's later `.toJSON()` behavior isn't something to rely on. Local
+  unsubscribe (stopping delivery on this device) happens even if the Worker call
+  fails, since that shouldn't depend on network availability.
+- Reworked the "Enable notifications" button to reflect **actual push subscription
+  state** (via `pushManager.getSubscription()`), not just `Notification.permission`
+  — toggles between "Enable notifications" / "Disable notifications" accordingly.
+  Also fixed the checklist-change handler and the on-load re-sync to check real
+  subscription state the same way, so neither one accidentally re-subscribes a
+  device that was deliberately unsubscribed (the old `Notification.permission ===
+  "granted"` check couldn't tell the difference — permission and subscription are
+  separate, independently-revocable things).
+
+**Testing note:** attempted headless-Chrome mocking (matching the pattern used
+successfully throughout Milestone F) but hit a real limitation — awaiting the real
+`navigator.serviceWorker.ready` hangs indefinitely in this headless environment
+(confirmed via bisection: execution stops exactly at that await, with `frame.load`
+and basic DOM access both working fine beforehand). Every earlier successful mocked
+test happened to avoid this exact path (always calling `syncSubscription` directly
+with a hand-built fake subscription, never through `currentPushSubscription()`/
+`subscribeToPush()`). Not worth reworking the app's code to make this path
+dependency-injectable purely for headless testability — switched to live-testing
+the actually-new logic (the Worker's delete path) directly via `curl` instead, which
+has no such limitation.
+
+**Process mistake, caught by the user:** asked the user to redeploy the Worker with
+the updated code, but had only edited `cloudflare-worker/worker.js` locally in the
+worktree — never committed/pushed it. The user correctly copied the still-old
+version from GitHub, so the "redeploy" didn't include the fix. First live test
+(`unsubscribe: true`) confirmed this: the resulting commit was titled "Sync push
+subscription," not "Remove push subscription" — proving the old upsert-only code
+was still running. Caught by checking actual git history rather than assuming
+success. Committing and pushing properly now, before asking for another redeploy.

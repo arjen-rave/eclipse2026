@@ -673,28 +673,68 @@
     pushSyncStatus.textContent = text;
   }
 
+  // subscriptionJson must be plain JSON (a PushSubscription's .toJSON() result, not
+  // a live PushSubscription object) — deliberately, so callers can capture it BEFORE
+  // an unsubscribe() call, rather than risk relying on a live object's state after
+  // the browser has already torn it down.
+  async function callWorker(subscriptionJson, checklistComplete, unsubscribe) {
+    const res = await fetch(WORKER_URL, {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer " + WORKER_APP_SECRET,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        subscription: subscriptionJson,
+        checklistComplete: !!checklistComplete,
+        unsubscribe: !!unsubscribe,
+      }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error("worker returned " + res.status + (data.error ? ": " + data.error : ""));
+    }
+  }
+
   async function syncSubscription(pushSubscription, checklistComplete) {
     try {
-      const res = await fetch(WORKER_URL, {
-        method: "POST",
-        headers: {
-          Authorization: "Bearer " + WORKER_APP_SECRET,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          subscription: pushSubscription.toJSON(),
-          checklistComplete: !!checklistComplete,
-        }),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error("worker returned " + res.status + (data.error ? ": " + data.error : ""));
-      }
+      await callWorker(pushSubscription.toJSON(), checklistComplete, false);
       setPushSyncStatus("Synced ✓");
       return true;
     } catch (e) {
       console.error("Failed to sync subscription", e);
       setPushSyncStatus("Sync failed: " + e.message);
+      return false;
+    }
+  }
+
+  // Unsubscribes locally (browser-level, stops delivery immediately) and tells the
+  // Worker to remove this device's entry from subscriptions.json. Local unsubscribe
+  // still happens even if the Worker call fails, since stopping delivery on THIS
+  // device shouldn't depend on network/Worker availability.
+  async function unsubscribeFromPush() {
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) return false;
+    setPushSyncStatus("Unsubscribing…");
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.getSubscription();
+      if (!sub) {
+        setPushSyncStatus("Not currently subscribed.");
+        return true;
+      }
+      const subJson = sub.toJSON(); // captured BEFORE unsubscribe() tears down the object
+      await sub.unsubscribe();
+      try {
+        await callWorker(subJson, false, true);
+        setPushSyncStatus("Unsubscribed ✓");
+      } catch (e) {
+        console.error("Failed to remove subscription from registry", e);
+        setPushSyncStatus("Unsubscribed on this device, but couldn't update the reminder list: " + e.message);
+      }
+      return true;
+    } catch (e) {
+      console.error("Unsubscribe failed", e);
+      setPushSyncStatus("Unsubscribe failed: " + e.message);
       return false;
     }
   }
@@ -712,15 +752,25 @@
     return sub;
   }
 
-  // ---- Notification permission ----
+  // Existing subscription only (never creates one) — used to decide button state
+  // and whether it's safe to re-sync without accidentally re-subscribing someone
+  // who deliberately unsubscribed.
+  async function currentPushSubscription() {
+    if (!("serviceWorker" in navigator) || !("PushManager" in window)) return null;
+    const reg = await navigator.serviceWorker.ready;
+    return reg.pushManager.getSubscription();
+  }
+
+  // ---- Notification subscribe/unsubscribe button ----
   const notifyBtn = document.getElementById("notifyBtn");
-  function refreshNotifyBtn() {
-    if (!("Notification" in window)) {
+  async function refreshNotifyBtn() {
+    if (!("Notification" in window) || !("PushManager" in window)) {
       notifyBtn.style.display = "none";
       return;
     }
-    if (Notification.permission === "granted") {
-      notifyBtn.textContent = "Notifications enabled";
+    const sub = await currentPushSubscription();
+    if (sub) {
+      notifyBtn.textContent = "Disable notifications";
       notifyBtn.classList.add("granted");
     } else {
       notifyBtn.textContent = "Enable notifications";
@@ -728,44 +778,46 @@
     }
   }
   notifyBtn.addEventListener("click", async () => {
+    const existingSub = await currentPushSubscription();
+    if (existingSub) {
+      await unsubscribeFromPush();
+      await refreshNotifyBtn();
+      return;
+    }
+
     if (!("Notification" in window)) return;
     const permission = await Notification.requestPermission();
-    refreshNotifyBtn();
-    if (permission === "granted") {
-      setPushSyncStatus("Subscribing…");
-      try {
-        const sub = await subscribeToPush();
-        if (!sub) {
-          setPushSyncStatus("Push notifications aren't supported on this browser/device.");
-          return;
-        }
-        await syncSubscription(sub, isChecklistComplete());
-      } catch (e) {
-        setPushSyncStatus("Subscribe failed: " + e.message);
-        console.error("Push subscription failed", e);
-      }
-    } else {
+    if (permission !== "granted") {
       setPushSyncStatus("Notification permission was not granted.");
+      await refreshNotifyBtn();
+      return;
     }
+    setPushSyncStatus("Subscribing…");
+    try {
+      const sub = await subscribeToPush();
+      if (!sub) {
+        setPushSyncStatus("Push notifications aren't supported on this browser/device.");
+      } else {
+        await syncSubscription(sub, isChecklistComplete());
+      }
+    } catch (e) {
+      setPushSyncStatus("Subscribe failed: " + e.message);
+      console.error("Push subscription failed", e);
+    }
+    await refreshNotifyBtn();
   });
   refreshNotifyBtn();
 
-  // Re-sync on every app open if already subscribed (self-healing — see the
-  // "Reminder architecture decision" note in CLAUDE.md for why this matters here).
-  if ("Notification" in window && Notification.permission === "granted") {
-    subscribeToPush()
-      .then((sub) => {
-        if (!sub) {
-          setPushSyncStatus("Push notifications aren't supported on this browser/device.");
-          return;
-        }
-        return syncSubscription(sub, isChecklistComplete());
-      })
-      .catch((e) => {
-        setPushSyncStatus("Re-sync failed: " + e.message);
-        console.error("Re-sync on load failed", e);
-      });
-  }
+  // Re-sync on every app open, but only if a subscription already exists — self
+  // -healing for server-side state loss (see "Reminder architecture decision" in
+  // CLAUDE.md), without ever creating a subscription the user hasn't asked for
+  // (e.g. right after they've deliberately unsubscribed).
+  currentPushSubscription()
+    .then((sub) => sub && syncSubscription(sub, isChecklistComplete()))
+    .catch((e) => {
+      setPushSyncStatus("Re-sync failed: " + e.message);
+      console.error("Re-sync on load failed", e);
+    });
 
   // ---- Debug controls (remove before 12 Aug 2026 — see plan risk #5) ----
   // Jumps relative to START (ec.startTimeUTC), matching what the T-30/T-5 alerts
@@ -996,16 +1048,15 @@
       saveChecklistState(checklistState);
       li.classList.toggle("checked", checkbox.checked);
       renderChecklistProgress();
-      // Keep the repo-committed record current, but only if already subscribed —
-      // don't force a subscription just because the checklist changed.
-      if ("Notification" in window && Notification.permission === "granted") {
-        subscribeToPush()
-          .then((sub) => sub && syncSubscription(sub, isChecklistComplete()))
-          .catch((e) => {
-            setPushSyncStatus("Checklist sync failed: " + e.message);
-            console.error("Checklist sync failed", e);
-          });
-      }
+      // Keep the repo-committed record current, but only if actually subscribed —
+      // checking real subscription state (not just Notification permission) so
+      // this never re-subscribes someone who's deliberately unsubscribed.
+      currentPushSubscription()
+        .then((sub) => sub && syncSubscription(sub, isChecklistComplete()))
+        .catch((e) => {
+          setPushSyncStatus("Checklist sync failed: " + e.message);
+          console.error("Checklist sync failed", e);
+        });
     });
     const span = document.createElement("span");
     span.textContent = item.label;
