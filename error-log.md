@@ -543,3 +543,10 @@ version from GitHub, so the "redeploy" didn't include the fix. First live test
 subscription," not "Remove push subscription" — proving the old upsert-only code
 was still running. Caught by checking actual git history rather than assuming
 success. Committing and pushing properly now, before asking for another redeploy.
+
+**Resolved.** Pushed the actual changes, user redeployed the Worker again — this
+time a live test (`curl` with `unsubscribe: true`) produced the correct "Remove
+push subscription (via Worker)" commit, and the test entry was confirmed gone from
+`subscriptions.json`. User then confirmed on the real device: the button correctly
+toggles to "Disable notifications" when subscribed, unsubscribing shows
+"Unsubscribed ✓," and re-subscribing afterward works cleanly.

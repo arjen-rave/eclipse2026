@@ -138,5 +138,11 @@ around (unused) rather than silently deleted.
         `sent-log.json` for real, with no safe way to undo that (no GitHub write
         access held anymore). Also still pending: user cleanup of stale/test
         entries in `subscriptions.json` (cosmetic, not blocking).
+  - [x] F6 — Unsubscribe option. Reminder timing (18:00/18:00/18:00/10:00 CEST for
+        Day-7/-3/-1/day-of) confirmed fine as-is, no changes needed. Live-tested the
+        Worker's delete path directly (added then removed a test entry via curl,
+        confirmed the commit message and that the entry was actually gone) before
+        asking for on-device confirmation — user confirmed the button toggles
+        correctly and re-subscribing afterward also works.
 - [ ] G — Full dry-run rehearsal (mandatory before 12 Aug 2026) — must include
       verifying Day-3's checklist-conditional skip specifically (see F5b note)
