@@ -54,11 +54,5 @@
       "endpoint": "https://example.com/UNSUB-TEST"
     },
     "checklistComplete": false
-  },
-  "https://example.com/UNSUB-TEST-2": {
-    "subscription": {
-      "endpoint": "https://example.com/UNSUB-TEST-2"
-    },
-    "checklistComplete": false
   }
 }
