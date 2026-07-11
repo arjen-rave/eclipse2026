@@ -344,26 +344,37 @@
 
   #locationHeader {
     background: var(--panel);
-    border-bottom: 1px solid var(--border);
-    padding: 0.9rem 1rem 1.1rem;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1.25rem;
+    margin: 1rem 1rem 0;
   }
-  #locationNotSet {
-    text-align: center;
+  #locationHeader h2 {
+    margin-top: 0;
+    font-size: 1.05rem;
+    color: var(--accent);
+  }
+  #locationDescription {
     color: var(--muted);
     font-size: 0.9rem;
-    margin: 0.5rem 0 1rem;
+    margin: 0 0 0.75rem;
   }
   #locationSummary .coverage-pct {
+    text-align: left;
     font-size: 2.25rem;
     margin: 0;
+  }
+  #locationSummary .coverage-sub {
+    text-align: left;
+    margin-top: 0;
   }
   #locationSummary .coverage-times {
     margin: 0.75rem 0 0.25rem;
   }
   .location-header-buttons {
     display: flex;
-    justify-content: center;
     gap: 0.5rem;
+    margin-top: 0.75rem;
   }
   .location-header-buttons button {
     border: 1px solid var(--border);
@@ -427,11 +438,11 @@
 
 <header>
   <h1>Solar Eclipse &mdash; 12 Aug 2026</h1>
-  <p>Netherlands &middot; partial eclipse</p>
 </header>
 
 <div id="locationHeader">
-  <p id="locationNotSet">Location not set yet</p>
+  <h2>Location</h2>
+  <p id="locationDescription">Location not set yet</p>
   <div id="locationSummary" style="display:none;">
     <div class="coverage-pct" id="coveragePct">--%</div>
     <p class="coverage-sub" id="coverageLabel"></p>
@@ -506,7 +517,7 @@
   <section class="panel" id="panel-checklist">
     <h2>Safety checklist</h2>
     <p class="checklist-warning">
-      This is a <strong>partial</strong> eclipse in the Netherlands &mdash; the sun is
+      This is a <strong>partial</strong> eclipse from most of Europe &mdash; the sun is
       never fully covered, so there is <strong>no safe moment to look at it without
       proper eye protection</strong>. Keep your glasses on for the whole event.
     </p>
@@ -935,7 +946,7 @@
   }
 
   const locationModal = document.getElementById("locationModal");
-  const locationNotSet = document.getElementById("locationNotSet");
+  const locationDescription = document.getElementById("locationDescription");
   const locationSummary = document.getElementById("locationSummary");
   const clearLocationBtn = document.getElementById("clearLocationBtn");
   const coveragePct = document.getElementById("coveragePct");
@@ -957,11 +968,17 @@
     if (event.target === locationModal) closeLocationModal(); // click on the dimmed backdrop, not the content box
   });
 
+  // loc.label (e.g. an address search result's display name) is used verbatim when
+  // available; geolocation/manual-lat-lon entries fall back to formatted coordinates.
+  function formatLocationLabel(loc) {
+    return loc.label || (loc.lat.toFixed(4) + "°, " + loc.lon.toFixed(4) + "°");
+  }
+
   function applyLocation(loc) {
     saveLocation(loc);
     const lc = EclipseMath.localCircumstances(loc.lat, loc.lon, loc.elevM || 0);
 
-    locationNotSet.style.display = "none";
+    locationDescription.textContent = formatLocationLabel(loc);
     locationSummary.style.display = "block";
     clearLocationBtn.style.display = "inline-block";
     closeLocationModal();
@@ -994,7 +1011,7 @@
     } catch (e) {
       console.error("Could not clear stored location", e);
     }
-    locationNotSet.style.display = "block";
+    locationDescription.textContent = "Location not set yet";
     locationSummary.style.display = "none";
     clearLocationBtn.style.display = "none";
     ec.targetUTC = PLACEHOLDER_TARGET;
@@ -1058,7 +1075,7 @@
         btn.addEventListener("click", () => {
           addressResults.innerHTML = "";
           document.getElementById("addressSearch").value = "";
-          applyLocation({ lat: parseFloat(r.lat), lon: parseFloat(r.lon), elevM: 0, source: "address" });
+          applyLocation({ lat: parseFloat(r.lat), lon: parseFloat(r.lon), elevM: 0, source: "address", label: r.display_name });
         });
         li.appendChild(btn);
         addressResults.appendChild(li);

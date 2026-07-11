@@ -1,8 +1,11 @@
 # Eclipse_Aug_2026
 
-Personal Android PWA for the 12 August 2026 solar eclipse. User will be somewhere in
-the Netherlands (partial eclipse only, no totality, exact spot unknown until possibly
-the day itself).
+Personal Android PWA for the 12 August 2026 solar eclipse. Originally scoped for the
+Netherlands specifically; generalized (Milestone H2) to work anywhere in the region
+that only sees a partial eclipse (Germany, Belgium, France, etc. — none of which are
+in the path of totality, so the "always partial, no safe naked-eye moment" premise
+still holds everywhere the app is used). Exact viewing spot is picked in-app, unknown
+in advance.
 
 Full implementation plan: `C:\Users\arjen\.claude\plans\the-session-looks-strange-buzzing-yao.md`
 
@@ -103,6 +106,20 @@ location" (opens the location-picker as a modal overlay) and "Clear location"
 down to 3 tabs (Countdown, Checklist, Camera) as an intermediate step — further
 consolidation toward 2 tabs is still to come, one piece at a time as the user directs.
 
+**H1 refinements — done:** the location header is now a boxed panel matching the
+Countdown tab's box styling (was previously a full-width bar), with an `<h2>Location</h2>`
+heading in the same top-left position/style as "Countdown". The placeholder/"not
+set" text and the resolved location description now share a single element
+(`#locationDescription`) rather than toggling between two — once set, it shows the
+address search result's name verbatim, or formatted coordinates as a fallback for
+geolocation/manual entry (which don't have a place name available).
+
+**H2 — done:** generalized all Netherlands-specific user-facing copy (the header
+subtitle, removed entirely, and the checklist's safety-warning text, now "most of
+Europe") — the underlying eclipse math already worked for any location (validated
+earlier against a France test search), this was purely a copy change. Kept as its
+own step per the user's incremental-design preference, even though small.
+
 ## Milestone status
 - [x] A — PWA skeleton & install
 - [x] B — Countdown + in-app local alerts
@@ -153,5 +170,7 @@ consolidation toward 2 tabs is still to come, one piece at a time as the user di
         correctly and re-subscribing afterward also works.
 - [ ] H — Layout redesign (4 tabs → 2 tabs), in progress — see "Layout redesign" above
   - [x] H1 — Coverage moved from a tab to a persistent header + location-picker modal
+        (incl. box styling + heading refinements)
+  - [x] H2 — Generalized Netherlands-specific copy for the wider European region
 - [ ] G — Full dry-run rehearsal (mandatory before 12 Aug 2026) — must include
       verifying Day-3's checklist-conditional skip specifically (see F5b note)

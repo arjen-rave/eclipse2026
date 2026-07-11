@@ -584,3 +584,35 @@ thorough verification before considering it done:
 Bumped `CACHE_NAME` to `eclipse2026-v15`. Further tab consolidation (toward the
 final 2-tab layout) intentionally left for the next incremental step, per the
 user's explicit one-at-a-time preference.
+
+## Milestone H1 refinements + H2 — box styling, heading, generalize copy
+
+User feedback on H1: wanted the location header styled as a box matching the
+Countdown tab (was a full-width bar), an `<h2>Location</h2>` heading in the same
+top-left position/style as "Countdown", and the placeholder text replaced by a real
+description of the set location rather than just disappearing. Also asked to remove
+the Netherlands-specific subtitle so the app works for other European countries too.
+
+Implementation: restyled `#locationHeader` to match `.panel`'s box look (background/
+border/border-radius/padding) without reusing the `.panel` class itself — that class
+is tied to the tab-switching JS (`display:none` unless `.active`), which would have
+made the location header disappear when switching tabs if reused directly. Merged
+the two previous elements (`#locationNotSet` shown/hidden, "not set" text) into one
+always-present `#locationDescription`, whose text is swapped rather than toggled.
+Added `formatLocationLabel()`: uses `loc.label` verbatim when available (now passed
+through from address-search results, which already have a `display_name`), falling
+back to formatted coordinates for geolocation/manual entry, which don't have a name.
+
+Removed the header subtitle entirely. Then asked the user whether to also generalize
+the checklist tab's "partial eclipse in the Netherlands" wording while at it, rather
+than silently leaving it inconsistent or unilaterally rewriting more than what was
+explicitly requested — user confirmed, so updated that too ("partial eclipse from
+most of Europe"). No functional/logic changes needed anywhere — the eclipse math
+already worked for arbitrary locations (validated earlier with a France address
+search test), this was purely user-facing copy.
+
+No errors encountered. Verified via headless Chrome: heading text, initial
+placeholder, address-label-path, and coordinate-fallback-path all confirmed correct
+with the real page code (not reimplemented logic); subtitle removal confirmed via
+DOM inspection; full-file syntax check passed. Bumped `CACHE_NAME` to
+`eclipse2026-v16`.
