@@ -54,5 +54,16 @@
       "endpoint": "https://example.com/UNSUB-TEST"
     },
     "checklistComplete": false
+  },
+  "https://fcm.googleapis.com/fcm/send/cMlFtXDpuKg:APA91bEHpIpfoJ-7aqnf4iiZKqonUCnFcGgvBkybdtustlhmupu_-439CdMS4YeKKq-smxGDLxF4I5kBNismhqvFUeA6CFBoWi8udZYfHbYqOJATTvLWo1DiOIW7Ke_67zIrllI2bKPP": {
+    "subscription": {
+      "endpoint": "https://fcm.googleapis.com/fcm/send/cMlFtXDpuKg:APA91bEHpIpfoJ-7aqnf4iiZKqonUCnFcGgvBkybdtustlhmupu_-439CdMS4YeKKq-smxGDLxF4I5kBNismhqvFUeA6CFBoWi8udZYfHbYqOJATTvLWo1DiOIW7Ke_67zIrllI2bKPP",
+      "expirationTime": null,
+      "keys": {
+        "p256dh": "BK-6Fmo85dlPYEBOnjUYLwpRdnNJwKeJDfMNX498Y_iP9yxc6jCA7Z58Fog5ba428TadN8IXk-YW8Pdc7JA4e78",
+        "auth": "j2ngc4_RHga2s-jbL-pgxg"
+      }
+    },
+    "checklistComplete": false
   }
 }
