@@ -112,7 +112,18 @@ heading in the same top-left position/style as "Countdown". The placeholder/"not
 set" text and the resolved location description now share a single element
 (`#locationDescription`) rather than toggling between two — once set, it shows the
 address search result's name verbatim, or formatted coordinates as a fallback for
-geolocation/manual entry (which don't have a place name available).
+geolocation/manual entry (which don't have a place name available). Coordinates-only
+fallback later upgraded to a real place name via reverse geocoding (see below).
+
+**H1 follow-up — reverse geocoding, done:** geolocation and manual lat/lon entry
+initially only showed raw coordinates ("52.3676°, 4.9041°"), which the user found
+unclear — wanted a city/place name instead. Added `reverseGeocodeLabel()` using the
+same OpenStreetMap Nominatim service already in use for address search, just its
+`/reverse` endpoint. Location header shows coordinates immediately (no perceived
+delay), then upgrades in the background to the resolved place name once the lookup
+completes; the resolved name is also saved to `localStorage`, so a reload doesn't
+need to redo the lookup. Best-effort only — a failed/slow lookup leaves the
+coordinate fallback in place rather than blocking anything.
 
 **H2 — done:** generalized all Netherlands-specific user-facing copy (the header
 subtitle, removed entirely, and the checklist's safety-warning text, now "most of

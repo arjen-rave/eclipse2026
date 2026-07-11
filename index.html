@@ -983,6 +983,18 @@
     clearLocationBtn.style.display = "inline-block";
     closeLocationModal();
 
+    // Geolocation/manual entries have no name yet (just coordinates) — look one up
+    // in the background and upgrade the displayed text + saved location once it
+    // resolves, without blocking anything on the lookup completing.
+    if (!loc.label) {
+      reverseGeocodeLabel(loc.lat, loc.lon).then((name) => {
+        if (!name) return;
+        const updatedLoc = Object.assign({}, loc, { label: name });
+        saveLocation(updatedLoc);
+        locationDescription.textContent = name;
+      });
+    }
+
     if (!lc.visible) {
       coveragePct.textContent = "0%";
       coverageLabel.textContent = "The eclipse isn't visible from this location.";
@@ -1050,6 +1062,28 @@
   // the location is cached exactly like geolocation/manual entry, so this doesn't
   // add a network dependency to the actual eclipse-day calculations.
   const addressResults = document.getElementById("addressResults");
+
+  // Reverse geocoding (coordinates -> place name) via the same Nominatim service's
+  // /reverse endpoint, used for the geolocation and manual-lat/lon paths (address
+  // search already has a name from the forward search, so doesn't need this). Best
+  // effort only: on failure, applyLocation's own coordinate-formatting fallback
+  // still applies, so a lookup failure never blocks setting a location.
+  async function reverseGeocodeLabel(lat, lon) {
+    try {
+      const url =
+        "https://nominatim.openstreetmap.org/reverse?format=json&lat=" +
+        encodeURIComponent(lat) + "&lon=" + encodeURIComponent(lon) + "&zoom=14";
+      const res = await fetch(url, { headers: { Accept: "application/json" } });
+      if (!res.ok) return null;
+      const data = await res.json();
+      // Prefer a short, human place name (town/city/village/etc.) over the full
+      // multi-part display_name ("Street, City, Region, Country, Postcode").
+      const addr = data.address || {};
+      return addr.city || addr.town || addr.village || addr.hamlet || addr.suburb || data.display_name || null;
+    } catch (e) {
+      return null;
+    }
+  }
 
   async function searchAddress() {
     const query = document.getElementById("addressSearch").value.trim();

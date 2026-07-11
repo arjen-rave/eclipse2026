@@ -616,3 +616,30 @@ placeholder, address-label-path, and coordinate-fallback-path all confirmed corr
 with the real page code (not reimplemented logic); subtitle removal confirmed via
 DOM inspection; full-file syntax check passed. Bumped `CACHE_NAME` to
 `eclipse2026-v16`.
+
+## H1 follow-up — reverse geocoding for geolocation/manual entry
+
+User feedback: geolocation and manual coordinate entry showed raw coordinates
+("52.3676°, 4.9041°") in the location header, and asked whether resolving that to a
+city/place name was possible. It was — same free Nominatim service already used for
+forward address search, just its `/reverse` endpoint (coordinates in, place name
+out), so no new dependency.
+
+Added `reverseGeocodeLabel(lat, lon)`: calls Nominatim's `/reverse`, prefers a short
+place name (`address.city`/`town`/`village`/`hamlet`/`suburb`) over the full
+multi-part `display_name` (street, city, region, country, postcode), falling back
+to that only if none of the shorter fields are present. Wired into `applyLocation()`: when a
+location has no `label` yet (i.e. came from geolocation or manual entry, not address
+search), the header shows the coordinate fallback immediately (no perceived delay,
+since the lookup happens in the background) and upgrades to the resolved name once
+the lookup completes — the resolved name is also saved back to `localStorage`, so a
+later reload shows the name immediately without repeating the lookup. Deliberately
+best-effort: a failed or slow lookup just leaves the coordinate fallback in place
+rather than blocking location-setting on it.
+
+Verified against the real Nominatim API (not mocked): `reverseGeocodeLabel(52.3676,
+4.9041)` correctly returned "Amsterdam", `reverseGeocodeLabel(50.8514, 5.6910)`
+correctly returned "Maastricht". Full `applyLocation()` flow test (manual-entry
+style, no label) confirmed the two-stage behavior: showed coordinates immediately,
+then "Amsterdam" ~1-2s later once the reverse lookup resolved, with the stored
+location's `label` field updated to match. Bumped `CACHE_NAME` to `eclipse2026-v17`.
