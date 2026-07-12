@@ -131,6 +131,19 @@ Europe") — the underlying eclipse math already worked for any location (valida
 earlier against a France test search), this was purely a copy change. Kept as its
 own step per the user's incremental-design preference, even though small.
 
+**H1 follow-up — moved into scrollable content, done:** the location box was
+sitting between the app `<header>` and `<main>`, outside `main`'s scrollable area —
+fine when empty, but once a location was set (coverage % + 3 time lines + buttons)
+it ate a large, permanently-visible chunk of the viewport, and scrolling the
+Countdown tab couldn't move it out of the way. User asked to have it live inside a
+tab instead, scoped to Countdown only (not repeated on Checklist/Camera). Moved the
+`#locationHeader` div to be the first thing inside `#panel-countdown`, right after
+the "Countdown" `<h2>`, so it's now normal scrollable content — scrolls away with
+the rest of the tab. Restyled as a nested sub-box (`var(--bg)` background inside the
+panel's `var(--panel)` background, own border) with an `<h3>Location</h3>` (not
+`<h2>`, to avoid two same-level headings — "Countdown" and "Location" — inside one
+panel).
+
 ## Milestone status
 - [x] A — PWA skeleton & install
 - [x] B — Countdown + in-app local alerts

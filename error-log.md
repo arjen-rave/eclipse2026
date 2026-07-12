@@ -643,3 +643,33 @@ correctly returned "Maastricht". Full `applyLocation()` flow test (manual-entry
 style, no label) confirmed the two-stage behavior: showed coordinates immediately,
 then "Amsterdam" ~1-2s later once the reverse lookup resolved, with the stored
 location's `label` field updated to match. Bumped `CACHE_NAME` to `eclipse2026-v17`.
+
+## H1 follow-up — location box moved out of the fixed header, into the Countdown tab
+
+User feedback: the location box was living between the app `<header>` and `<main>`,
+outside `main`'s `overflow-y:auto` scrollable area. Fine when it just said "Location
+not set yet," but once a real location was set (coverage %, three time lines, two
+buttons) that block became tall enough to occupy a large, permanently-visible
+fraction of the viewport — and being outside the scrollable area, nothing (not even
+scrolling) could move it aside, so it effectively covered the Countdown tab's own
+content underneath. Asked the user whether it should repeat on all three tabs or
+live on Countdown only (since that's the tab it's most tied to) — user chose
+Countdown-only.
+
+Moved the `#locationHeader` div from top-level markup (between `<header>` and
+`<main>`) into `#panel-countdown`, immediately after that panel's own `<h2>Countdown</h2>`
+— it's now ordinary scrollable content inside the tab, not a fixed element eating
+space above it. Restyled it as a nested sub-box: `var(--bg)` background (distinct
+from the panel's own `var(--panel)` background, so it still reads as a distinct
+unit) with its own border, and changed its internal heading from `<h2>Location</h2>`
+to `<h3>Location</h3>` — nesting inside a panel that already has an `<h2>Countdown</h2>`
+meant two identically-styled `<h2>`s would have appeared stacked, which would have
+read as two competing section titles rather than a heading + sub-heading.
+
+No errors encountered. Verified via headless Chrome (real page code): confirmed
+`#locationHeader`'s parent is now the `#panel-countdown` `<section>` (not a
+top-level sibling of `<main>`), and re-ran the full set/apply/clear flow to confirm
+nothing broke in the move — modal opens/closes correctly, `applyLocation()` still
+populates the coverage summary correctly (88% for the Amsterdam test point, matching
+all earlier validation), and clearing still resets the description text correctly.
+Bumped `CACHE_NAME` to `eclipse2026-v18`.

@@ -343,15 +343,15 @@
   }
 
   #locationHeader {
-    background: var(--panel);
+    background: var(--bg);
     border: 1px solid var(--border);
     border-radius: 14px;
-    padding: 1.25rem;
-    margin: 1rem 1rem 0;
+    padding: 1.1rem;
+    margin: 1rem 0 1.5rem;
   }
-  #locationHeader h2 {
-    margin-top: 0;
-    font-size: 1.05rem;
+  #locationHeader h3 {
+    margin: 0 0 0.5rem;
+    font-size: 0.95rem;
     color: var(--accent);
   }
   #locationDescription {
@@ -440,20 +440,6 @@
   <h1>Solar Eclipse &mdash; 12 Aug 2026</h1>
 </header>
 
-<div id="locationHeader">
-  <h2>Location</h2>
-  <p id="locationDescription">Location not set yet</p>
-  <div id="locationSummary" style="display:none;">
-    <div class="coverage-pct" id="coveragePct">--%</div>
-    <p class="coverage-sub" id="coverageLabel"></p>
-    <ul class="coverage-times" id="coverageTimes"></ul>
-  </div>
-  <div class="location-header-buttons">
-    <button id="setLocationBtn">Set location</button>
-    <button id="clearLocationBtn" style="display:none;">Clear location</button>
-  </div>
-</div>
-
 <div id="locationModal" class="modal-overlay" style="display:none;">
   <div class="modal-content">
     <button id="closeLocationModal" class="modal-close" aria-label="Close">&times;</button>
@@ -487,6 +473,21 @@
 <main>
   <section class="panel active" id="panel-countdown">
     <h2>Countdown</h2>
+
+    <div id="locationHeader">
+      <h3>Location</h3>
+      <p id="locationDescription">Location not set yet</p>
+      <div id="locationSummary" style="display:none;">
+        <div class="coverage-pct" id="coveragePct">--%</div>
+        <p class="coverage-sub" id="coverageLabel"></p>
+        <ul class="coverage-times" id="coverageTimes"></ul>
+      </div>
+      <div class="location-header-buttons">
+        <button id="setLocationBtn">Set location</button>
+        <button id="clearLocationBtn" style="display:none;">Clear location</button>
+      </div>
+    </div>
+
     <p class="countdown-target" id="targetLabel">Loading target time&hellip;</p>
     <div class="countdown-clock" id="clock">
       <div class="unit"><div class="val" id="clockDays">--</div><div class="lbl">days</div></div>
