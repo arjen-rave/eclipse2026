@@ -2,12 +2,13 @@
 // file as changed, run the update lifecycle, and purge the previous cache. Without a
 // change here, Chrome won't even notice a new service worker exists (it byte-diffs
 // this file), so old cached content keeps being served indefinitely.
-const CACHE_NAME = "eclipse2026-v20";
+const CACHE_NAME = "eclipse2026-v21";
 const CORE_ASSETS = [
   "./",
   "./index.html",
   "./manifest.json",
   "./besselian-2026-08-12.js",
+  "./sun-position.js",
   "./icons/icon-192.png",
   "./icons/icon-512.png",
 ];

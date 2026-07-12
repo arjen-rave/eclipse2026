@@ -389,13 +389,16 @@
     gap: 0.5rem;
     margin-top: 0.9rem;
   }
-  .info-box-buttons button {
+  .info-box-buttons button,
+  .info-box-buttons a {
     border: 1px solid var(--border);
     background: var(--bg);
     color: var(--text);
     border-radius: 999px;
     padding: 0.4rem 0.9rem;
     font-size: 0.8rem;
+    text-decoration: none;
+    display: inline-block;
   }
   #setLocationBtn {
     background: var(--accent);
@@ -442,6 +445,60 @@
     padding: 0.35rem 0.5rem;
     min-width: 2.2rem;
     min-height: 2.2rem;
+  }
+
+  #cameraPreviewWrap {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 3 / 4;
+    background: #000;
+    border-radius: 10px;
+    overflow: hidden;
+    margin: 1rem 0;
+  }
+  #cameraVideo {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  #aimOverlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+  }
+  #aimReticle {
+    width: 3.75rem;
+    height: 3.75rem;
+    border: 3px solid var(--accent);
+    border-radius: 50%;
+    opacity: 0.85;
+    transition: border-color 0.2s;
+  }
+  #aimReticle.aligned {
+    border-color: #4ade80;
+  }
+  .aim-arrow {
+    position: absolute;
+    font-size: 2rem;
+    line-height: 1;
+    color: var(--accent);
+    font-weight: 700;
+    text-shadow: 0 0 6px rgba(0, 0, 0, 0.6);
+  }
+  .aim-arrow.left { left: 0.6rem; top: 50%; transform: translateY(-50%); }
+  .aim-arrow.right { right: 0.6rem; top: 50%; transform: translateY(-50%); }
+  .aim-arrow.up { top: 0.6rem; left: 50%; transform: translateX(-50%); }
+  .aim-arrow.down { bottom: 0.6rem; left: 50%; transform: translateX(-50%); }
+
+  #capturedImg {
+    display: block;
+    width: 100%;
+    border-radius: 10px;
+    margin-top: 1rem;
   }
 </style>
 </head>
@@ -542,9 +599,51 @@
 
   <section class="panel" id="panel-camera">
     <h2>Find the sun</h2>
-    <p>A camera view with an on-screen aiming guide to help you point at the sun
-      will appear here.</p>
-    <span class="placeholder-tag">Built in Milestone E</span>
+
+    <div id="cameraLocationEmpty">
+      <p class="tab-muted">Location is not set</p>
+      <div class="info-box-buttons">
+        <button id="cameraSetLocationBtn">Set location</button>
+      </div>
+    </div>
+
+    <div id="cameraContent" style="display:none;">
+      <p class="checklist-warning">
+        Never look directly at the sun, even briefly, while using this. Keep your
+        eclipse glasses on at all times &mdash; only look at <strong>this screen</strong>,
+        never along the same line of sight as the camera. This is a
+        &ldquo;find the sun&rdquo; aid, not a photography tool: your phone has no
+        optical zoom, so the eclipsed sun will appear as a small dot in any photo,
+        regardless of how well aimed it is.
+      </p>
+
+      <div id="cameraPreviewWrap">
+        <video id="cameraVideo" autoplay playsinline muted></video>
+        <div id="aimOverlay">
+          <div id="aimReticle"></div>
+          <div class="aim-arrow left" style="display:none;">&larr;</div>
+          <div class="aim-arrow right" style="display:none;">&rarr;</div>
+          <div class="aim-arrow up" style="display:none;">&uarr;</div>
+          <div class="aim-arrow down" style="display:none;">&darr;</div>
+        </div>
+      </div>
+      <p class="tab-muted" id="cameraStatus"></p>
+
+      <div class="info-box-buttons" id="cameraControls">
+        <button id="startCameraBtn">Start camera</button>
+        <button id="enableCompassBtn" style="display:none;">Enable compass</button>
+        <button id="captureBtn" style="display:none;">Capture photo</button>
+      </div>
+
+      <div id="captureResult" style="display:none;">
+        <img id="capturedImg" alt="Captured photo" />
+        <div class="info-box-buttons">
+          <a id="downloadCaptureLink" download="eclipse-photo.png">Download photo</a>
+          <button id="shareCaptureBtn" style="display:none;">Share</button>
+          <button id="retakeBtn">Retake</button>
+        </div>
+      </div>
+    </div>
   </section>
 </main>
 
@@ -561,6 +660,7 @@
 </nav>
 
 <script src="besselian-2026-08-12.js"></script>
+<script src="sun-position.js"></script>
 <script>
   // Tab navigation
   const tabs = document.querySelectorAll("nav .tab");
@@ -570,6 +670,12 @@
       document.querySelectorAll(".panel").forEach((p) => p.classList.remove("active"));
       tab.classList.add("active");
       document.getElementById(tab.dataset.panel).classList.add("active");
+      // Release the camera (and stop the aiming-guidance timer) when navigating
+      // away from the Camera tab — no reason to keep it running in the background.
+      // stopCameraStream is defined later in this file; function declarations are
+      // hoisted, and this only ever runs on a later user click, well after the
+      // whole script has finished its first pass, so the ordering is safe either way.
+      if (tab.dataset.panel !== "panel-camera") stopCameraStream();
     });
   });
 
@@ -990,6 +1096,7 @@
 
   function applyLocation(loc) {
     saveLocation(loc);
+    refreshCameraTabState();
     const lc = EclipseMath.localCircumstances(loc.lat, loc.lon, loc.elevM || 0);
 
     locationDescription.textContent = formatLocationLabel(loc);
@@ -1051,6 +1158,7 @@
     clearLocationBtn.style.display = "none";
     countdownEmptyMsg.style.display = "block";
     countdownSetState.style.display = "none";
+    refreshCameraTabState();
     ec.targetUTC = PLACEHOLDER_TARGET;
     ec.startTimeUTC = PLACEHOLDER_TARGET;
     ec.fired.clear();
@@ -1163,11 +1271,6 @@
     applyLocation({ lat, lon, elevM: 0, source: "manual" });
   });
 
-  // Auto-apply a previously chosen location, so returning users don't need to
-  // re-enter it every time they open the app.
-  const storedLocation = loadStoredLocation();
-  if (storedLocation) applyLocation(storedLocation);
-
   // ---- Safety checklist (Milestone D) ----
   // Partial-eclipse-only content: there is no totality here, so no "safe to remove
   // glasses" moment exists — every item reflects that, unlike a totality checklist.
@@ -1248,6 +1351,247 @@
     checklistItemsEl.appendChild(li);
   });
   renderChecklistProgress();
+
+  // ---- Camera "find the sun" aid (Milestone E) ----
+  // Explicitly a directional aiming aid, not an astrophotography tool — see the
+  // safety/expectation-setting copy in the panel itself. Sun position comes from
+  // sun-position.js (generic, any-day solar position), deliberately NOT shared
+  // with besselian-2026-08-12.js's eclipse-specific math — see that file's header
+  // comment and the plan's "No-duplication list" for why.
+  const cameraLocationEmpty = document.getElementById("cameraLocationEmpty");
+  const cameraContent = document.getElementById("cameraContent");
+  const cameraVideo = document.getElementById("cameraVideo");
+  const cameraStatus = document.getElementById("cameraStatus");
+  const startCameraBtn = document.getElementById("startCameraBtn");
+  const enableCompassBtn = document.getElementById("enableCompassBtn");
+  const captureBtn = document.getElementById("captureBtn");
+  const captureResult = document.getElementById("captureResult");
+  const capturedImg = document.getElementById("capturedImg");
+  const downloadCaptureLink = document.getElementById("downloadCaptureLink");
+  const shareCaptureBtn = document.getElementById("shareCaptureBtn");
+  const retakeBtn = document.getElementById("retakeBtn");
+  const cameraPreviewWrap = document.getElementById("cameraPreviewWrap");
+  const cameraControls = document.getElementById("cameraControls");
+  const aimReticle = document.getElementById("aimReticle");
+  const arrowLeft = document.querySelector(".aim-arrow.left");
+  const arrowRight = document.querySelector(".aim-arrow.right");
+  const arrowUp = document.querySelector(".aim-arrow.up");
+  const arrowDown = document.querySelector(".aim-arrow.down");
+
+  let cameraStream = null;
+  let orientationEventName = null;
+  let orientationHandler = null;
+  let aimUpdateTimer = null;
+  let deviceHeading = null; // null until a real orientation reading arrives
+  let deviceAltitude = null;
+
+  function refreshCameraTabState() {
+    const loc = loadStoredLocation();
+    cameraLocationEmpty.style.display = loc ? "none" : "block";
+    cameraContent.style.display = loc ? "block" : "none";
+    if (!loc) stopCameraStream();
+  }
+  document.getElementById("cameraSetLocationBtn").addEventListener("click", openLocationModal);
+
+  const COMPASS_POINTS = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
+  function compassPointName(azimuthDeg) {
+    return COMPASS_POINTS[Math.round(azimuthDeg / 22.5) % 16];
+  }
+
+  function hideArrows() {
+    arrowLeft.style.display = "none";
+    arrowRight.style.display = "none";
+    arrowUp.style.display = "none";
+    arrowDown.style.display = "none";
+  }
+
+  function updateAimGuidance() {
+    const loc = loadStoredLocation();
+    if (!loc) return;
+    const sunPos = SunPosition.getSunPosition(new Date(), loc.lat, loc.lon);
+
+    if (sunPos.altitude < 0) {
+      aimReticle.classList.remove("aligned");
+      hideArrows();
+      cameraStatus.textContent = "The sun is below the horizon right now — nothing to aim at yet.";
+      return;
+    }
+
+    if (deviceHeading === null || deviceAltitude === null) {
+      // No orientation data (denied/unsupported) — numeric fallback per the plan:
+      // never make this feature hard-depend on the compass working.
+      hideArrows();
+      aimReticle.classList.remove("aligned");
+      cameraStatus.textContent =
+        "Point your phone toward " + compassPointName(sunPos.azimuth) +
+        " (azimuth " + sunPos.azimuth.toFixed(0) + "°), " +
+        sunPos.altitude.toFixed(0) + "° above the horizon.";
+      return;
+    }
+
+    let azDiff = sunPos.azimuth - deviceHeading;
+    azDiff = ((azDiff + 540) % 360) - 180; // normalize to -180..180
+    const altDiff = sunPos.altitude - deviceAltitude;
+
+    const TOLERANCE_DEG = 6;
+    if (Math.abs(azDiff) < TOLERANCE_DEG && Math.abs(altDiff) < TOLERANCE_DEG) {
+      aimReticle.classList.add("aligned");
+      hideArrows();
+      cameraStatus.textContent = "You're pointing roughly at the sun's position.";
+    } else {
+      aimReticle.classList.remove("aligned");
+      arrowLeft.style.display = azDiff < 0 ? "block" : "none";
+      arrowRight.style.display = azDiff > 0 ? "block" : "none";
+      arrowUp.style.display = altDiff > 0 ? "block" : "none";
+      arrowDown.style.display = altDiff < 0 ? "block" : "none";
+      const azPart = Math.abs(azDiff) >= TOLERANCE_DEG
+        ? "turn " + (azDiff > 0 ? "right" : "left") + " " + Math.abs(azDiff).toFixed(0) + "°"
+        : null;
+      const altPart = Math.abs(altDiff) >= TOLERANCE_DEG
+        ? "tilt " + (altDiff > 0 ? "up" : "down") + " " + Math.abs(altDiff).toFixed(0) + "°"
+        : null;
+      cameraStatus.textContent = [azPart, altPart].filter(Boolean).join(", ") + ".";
+    }
+  }
+
+  // iOS Safari requires an explicit user-gesture-triggered permission request for
+  // orientation data; Android doesn't expose this API at all, so this branch is
+  // simply never taken there — feature-detected, not assumed either way.
+  function startOrientationTracking() {
+    if (typeof DeviceOrientationEvent !== "undefined" && typeof DeviceOrientationEvent.requestPermission === "function") {
+      enableCompassBtn.style.display = "inline-block";
+      return;
+    }
+    if (!("DeviceOrientationEvent" in window)) {
+      cameraStatus.textContent = "Compass not supported on this device — showing numeric guidance instead.";
+      return;
+    }
+    attachOrientationListener();
+  }
+
+  enableCompassBtn.addEventListener("click", async () => {
+    try {
+      const result = await DeviceOrientationEvent.requestPermission();
+      enableCompassBtn.style.display = "none";
+      if (result === "granted") {
+        attachOrientationListener();
+      } else {
+        cameraStatus.textContent = "Compass permission denied — showing numeric guidance instead.";
+      }
+    } catch (e) {
+      enableCompassBtn.style.display = "none";
+      cameraStatus.textContent = "Compass not available — showing numeric guidance instead.";
+    }
+  });
+
+  function attachOrientationListener() {
+    // 'deviceorientationabsolute' (where available, mainly Android Chrome) gives a
+    // true/magnetic-north-relative heading directly; plain 'deviceorientation' is
+    // used as a fallback where that event doesn't exist.
+    orientationEventName = "ondeviceorientationabsolute" in window ? "deviceorientationabsolute" : "deviceorientation";
+    orientationHandler = (event) => {
+      if (event.alpha === null && event.webkitCompassHeading === undefined) return; // no usable data yet
+      // event.alpha increases counter-clockwise per spec; standard compass bearing
+      // increases clockwise, hence the (360 - alpha) inversion. webkitCompassHeading
+      // (iOS Safari only) is already a correctly-oriented compass bearing.
+      deviceHeading = event.webkitCompassHeading !== undefined
+        ? event.webkitCompassHeading
+        : (360 - (event.alpha || 0)) % 360;
+      // Approximate: beta=90 is "phone held vertical, camera aiming at the horizon";
+      // beta=180 is "phone tilted fully back, camera aiming at the zenith." This is
+      // a best-effort mapping for a directional aid, not a precision instrument —
+      // the numeric azimuth/altitude readout is always shown alongside it as the
+      // authoritative cross-check.
+      deviceAltitude = (event.beta || 0) - 90;
+    };
+    window.addEventListener(orientationEventName, orientationHandler);
+  }
+
+  async function startCamera() {
+    cameraStatus.textContent = "Requesting camera access…";
+    try {
+      cameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+      cameraVideo.srcObject = cameraStream;
+      startCameraBtn.style.display = "none";
+      captureBtn.style.display = "inline-block";
+      startOrientationTracking();
+      if (aimUpdateTimer) clearInterval(aimUpdateTimer);
+      aimUpdateTimer = setInterval(updateAimGuidance, 500);
+      updateAimGuidance();
+    } catch (e) {
+      cameraStatus.textContent = "Couldn't access the camera: " + e.message;
+    }
+  }
+  startCameraBtn.addEventListener("click", startCamera);
+
+  function stopCameraStream() {
+    if (cameraStream) {
+      cameraStream.getTracks().forEach((track) => track.stop());
+      cameraStream = null;
+    }
+    if (orientationHandler && orientationEventName) {
+      window.removeEventListener(orientationEventName, orientationHandler);
+      orientationHandler = null;
+    }
+    if (aimUpdateTimer) {
+      clearInterval(aimUpdateTimer);
+      aimUpdateTimer = null;
+    }
+    deviceHeading = null;
+    deviceAltitude = null;
+    startCameraBtn.style.display = "inline-block";
+    captureBtn.style.display = "none";
+    enableCompassBtn.style.display = "none";
+    cameraStatus.textContent = "";
+  }
+
+  captureBtn.addEventListener("click", () => {
+    const canvas = document.createElement("canvas");
+    canvas.width = cameraVideo.videoWidth;
+    canvas.height = cameraVideo.videoHeight;
+    canvas.getContext("2d").drawImage(cameraVideo, 0, 0, canvas.width, canvas.height);
+    canvas.toBlob((blob) => {
+      if (!blob) return;
+      const url = URL.createObjectURL(blob);
+      capturedImg.src = url;
+      downloadCaptureLink.href = url;
+      captureResult.style.display = "block";
+      cameraPreviewWrap.style.display = "none";
+      cameraControls.style.display = "none";
+
+      if (navigator.share && navigator.canShare) {
+        const file = new File([blob], "eclipse-photo.png", { type: "image/png" });
+        if (navigator.canShare({ files: [file] })) {
+          shareCaptureBtn.style.display = "inline-block";
+          shareCaptureBtn.onclick = async () => {
+            try {
+              await navigator.share({ files: [file], title: "Eclipse photo" });
+            } catch (e) {
+              // User cancelled the share sheet — not an error condition.
+            }
+          };
+        }
+      }
+    }, "image/png");
+  });
+
+  retakeBtn.addEventListener("click", () => {
+    captureResult.style.display = "none";
+    cameraPreviewWrap.style.display = "block";
+    cameraControls.style.display = "flex";
+    shareCaptureBtn.style.display = "none";
+  });
+
+  refreshCameraTabState();
+
+  // Auto-apply a previously chosen location, so returning users don't need to
+  // re-enter it every time they open the app. Deliberately triggered here, at the
+  // very end of the script — applyLocation() touches Countdown-box, Location-box,
+  // and Camera-tab elements alike, so it can only safely run once every section's
+  // const declarations further down the file (like the camera one just above)
+  // have actually executed, not just been hoisted.
+  const storedLocation = loadStoredLocation();
+  if (storedLocation) applyLocation(storedLocation);
 </script>
 
 </body>

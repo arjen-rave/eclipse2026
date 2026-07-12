@@ -763,3 +763,79 @@ computed `text-align` confirmed `left` for `locationDescription`, `coveragePct`,
 confirmed `targetLabel`'s text reads exactly "Counting down to the local eclipse
 maximum" with no embedded date; confirmed no `.placeholder-tag` element remains
 inside `#countdownBox`. Bumped `CACHE_NAME` to `eclipse2026-v20`.
+
+## Milestone E — Camera "find the sun" aid
+
+Built `sun-position.js` (standalone module, Meeus ch. 25 low-precision solar
+position — generic azimuth/altitude for any date/location, deliberately not
+shared with the eclipse-specific Besselian math, per the plan's no-duplication
+rule) and the Camera tab UI (safety copy, live preview, reticle + directional
+arrows, numeric fallback, capture/download/share).
+
+**Validation approach for `sun-position.js`:** couldn't get a usable reference
+value from an interactive third-party solar-position calculator this session
+(USNO's tool is form-only with no queryable URL; planetcalc.com's page didn't
+document query parameters). Used well-established astronomical facts instead —
+equinox declination = 0°, solstice declination = ±23.44° — and scanned each test
+date/location for the sun's daily maximum altitude (which by definition occurs at
+solar noon), checking it against `90° − |latitude − declination|`. Four checks:
+equinox at lat 52.37°N (expect ~37.6°, got 37.58°), December solstice at the same
+latitude (expect ~14.2°, got 14.20°), June solstice at Sydney/Southern Hemisphere
+(expect ~32.7° AND azimuth ~0°/due north — this second part specifically catches
+azimuth sign-convention bugs, got 32.69° and azimuth 0.2°), and equinox at the
+equator (expect ~90°/zenith, got 89.86°, small deviation from 2-minute scan
+resolution). All four passed closely, including the Southern Hemisphere sign
+check, giving high confidence in the algorithm before wiring it into the UI.
+
+**Testing the camera flow itself, and what I could/couldn't verify:**
+- Real getUserMedia + Chrome's `--use-fake-device-for-media-stream` flag did not
+  work reliably in this headless-new + virtual-time-budget combination (the
+  promise never resolved within any tested budget) — abandoned rather than fight
+  it further. Switched to mocking `navigator.mediaDevices.getUserMedia` to
+  resolve with a real `canvas.captureStream()`-backed `MediaStream` (a genuine
+  MediaStream instance, satisfies `video.srcObject`'s type-check, not a hand-rolled
+  fake object) — this still exercises the app's actual code paths (state toggling,
+  video wiring, capture-to-canvas, tab-switch cleanup), just substitutes the OS
+  camera layer, which is the one part no local dev environment can meaningfully
+  simulate anyway.
+- Found and fixed two test-only issues before trusting the results: `captureStream(0)`
+  (zero fps) never delivered real frame data to the video element in headless mode —
+  switched to `captureStream()` (continuous real framerate) — and `canvas.toBlob()`
+  needed a much longer wait (3s, not 500ms) to resolve in this software-rendered
+  environment. Neither was an app bug, both were test-harness tuning.
+- Confirmed via the real app code: camera starts and wires `video.srcObject`
+  correctly; the aim-guidance numeric fallback renders real, sensible text (e.g.
+  "Point your phone toward SSE (azimuth 152°), 57° above the horizon" — matches
+  the compass-point-name/azimuth/altitude actually computed); capture produces a
+  real blob URL and correctly hides the live preview during review; retake
+  correctly restores the preview; switching tabs away from Camera correctly stops
+  the underlying MediaStream track (`readyState` transitions from `live` to
+  `ended`).
+- **Could not test on this machine, flagged for on-device verification (same
+  pattern as prior hardware-dependent pieces in this project):** the actual
+  `DeviceOrientationEvent` compass/tilt behavior — no synthetic orientation events
+  in headless Chrome, and no Android hardware available in this session. The
+  heading-inversion formula (`(360 - alpha) % 360`) and the beta-to-altitude
+  mapping are implemented per well-documented, widely-cited conventions and
+  explained in code comments, but are explicitly best-effort approximations for a
+  directional aid, not independently re-derived/re-verified against a real device
+  here — the numeric fallback is always shown alongside the compass-driven arrows
+  as an authoritative cross-check specifically because of this uncertainty.
+
+**Real bug found and fixed via testing, not shipped:** `applyLocation()` — which
+runs automatically on page load whenever a location is already stored (i.e., for
+any returning user) — was updated to also refresh Camera-tab state
+(`refreshCameraTabState()`, referencing `const`s declared near the very end of the
+script). The auto-load trigger itself sat much earlier in the file (right after the
+manual-location-entry handler), so on a fresh script execution with a location
+already in `localStorage`, calling into `refreshCameraTabState()` would hit those
+not-yet-initialized `const`s — a "cannot access before initialization" crash on
+literally every page load for a returning user. Caught by explicitly testing the
+returning-user scenario (fresh iframe load with a location pre-saved to shared
+localStorage), not just the empty-state case that earlier milestones' tests had
+covered — confirmed the crash happened, then confirmed the fix (moving the
+auto-load trigger to the very end of the script, after every section's `const`s are
+declared) resolved it cleanly with no behavior change otherwise.
+
+Added `sun-position.js` to the service worker's precache list, bumped `CACHE_NAME`
+to `eclipse2026-v21`.

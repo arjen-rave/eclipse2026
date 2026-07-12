@@ -174,6 +174,52 @@ shown in the times list below it — simplified to a static "Counting down to th
 local eclipse maximum" — and removed the "Built in Milestone B" tag from the
 Countdown box (a Milestone-tracking leftover, no longer relevant).
 
+## Milestone E — Camera "find the sun" aid
+Reuses the currently-set location (same one used for coverage %) rather than a
+separate live GPS lookup — one location source of truth, avoids requesting
+geolocation permission twice. Camera tab shows a "Location is not set" prompt (same
+pattern as the Countdown box) until one exists.
+
+- **`sun-position.js`** (new, standalone module — see its header comment and the
+  plan's "No-duplication list" for why this is deliberately NOT shared with
+  `besselian-2026-08-12.js`'s eclipse-specific math): implements the standard
+  Meeus ch. 25 low-precision solar position formula. Self-validated against
+  well-known astronomical facts (equinox/solstice declination values) rather than
+  an unreachable third-party calculator — scanned for the sun's daily maximum
+  altitude (= solar noon by definition) at several lat/date combinations, including
+  a Southern Hemisphere case specifically to catch azimuth sign-convention bugs.
+  All four checks matched expected values closely (largest deviation 0.05°),
+  including the Southern Hemisphere azimuth correctly flipping to ~0° (due north).
+- **UI**: safety/expectation-setting copy (never look at the sun directly; this is
+  a directional aid, not an astrophotography tool — no zoom, phone camera renders
+  the eclipsed sun as a small dot regardless of aim), live camera preview
+  (`getUserMedia`, rear camera), an on-screen reticle + directional arrows driven
+  by the difference between device orientation and computed sun position, capture-
+  to-canvas with download/share.
+- **Orientation handling**: feature-detects `DeviceOrientationEvent.requestPermission`
+  (iOS-only gesture-gated permission API) and shows an explicit "Enable compass"
+  button only when it exists; falls back to a plain numeric readout ("point toward
+  SSE, azimuth 152°, 57° above the horizon") if orientation data is unavailable or
+  denied — the camera feature never hard-depends on the compass working, per the
+  plan. Compass heading conversion (`(360 - alpha) % 360`, or `webkitCompassHeading`
+  on iOS Safari) and the beta-to-altitude mapping are documented in code comments as
+  best-effort approximations — not independently verified against a real device in
+  this session (no Android hardware available here), flagged for on-device
+  confirmation same as prior milestones' hardware-dependent pieces.
+- Camera stream (and the orientation listener + aim-guidance timer) is explicitly
+  stopped when navigating away from the Camera tab, not left running in the
+  background.
+- **Real bug caught before it could ship**: `applyLocation()` — called
+  automatically on page load for any returning user with a previously-set location
+  — now also touches Camera-tab elements (`refreshCameraTabState()`). Those
+  elements are declared via `const` near the very end of the script; the original
+  auto-load trigger sat much earlier in the file, meaning every returning user
+  would have hit a "cannot access before initialization" crash on load. Caught via
+  a targeted headless test simulating a fresh page load with a location already in
+  `localStorage` (not just the empty-state case that had been tested so far) — the
+  exact scenario that would have broken. Fixed by moving the auto-load trigger to
+  the very end of the script, after all section-level `const`s are declared.
+
 ## Milestone status
 - [x] A — PWA skeleton & install
 - [x] B — Countdown + in-app local alerts
@@ -184,7 +230,7 @@ Countdown box (a Milestone-tracking leftover, no longer relevant).
         Groningen, Maastricht, The Hague)
   - [x] C4 — Wire into UI (geolocation + manual override, Coverage tab, real countdown target)
 - [x] D — Safety checklist
-- [ ] E — Camera "find the sun" aid
+- [x] E — Camera "find the sun" aid
 - [ ] F — Server-less reminders (GitHub Actions does scheduling + sending; repo files
       are the only state) — built before E, per user request, since E is standalone
   - [x] ~~F1 — Write push-server code (Render/Express)~~ — **archived**, replaced by
