@@ -144,6 +144,25 @@ panel's `var(--panel)` background, own border) with an `<h3>Location</h3>` (not
 `<h2>`, to avoid two same-level headings — "Countdown" and "Location" — inside one
 panel).
 
+**H1 correction — two sibling boxes, not nested, done:** user rejected the nested
+sub-box from the previous step ("you integrated it into the box in the tab") —
+wanted Location to read as equal to Countdown, not subordinate to it. Restructured
+`#panel-countdown` from one `.panel` box into a `flex-column` wrapper (box styling
+stripped via an ID-specificity override, so it doesn't affect Checklist/Camera,
+which still use plain `.panel`) holding **two separate `.info-box` boxes**, each
+with its own `<h2>` heading styled identically to "Countdown": a **Location** box
+(name/coordinates, coverage %, Set/Clear buttons — all right-aligned) followed by a
+**Countdown** box (clock, notifications, start/max/end times list — moved to the
+bottom of this box). Both boxes now toggle between an empty message ("Location is
+not set") and their populated content together, driven by `applyLocation()`/the
+clear handler — including a location where the eclipse isn't visible at all
+(handled explicitly: shows the location's info but keeps the Countdown box in its
+empty state, since there's no valid target time to count down to there). Removed
+the "This countdown target is a placeholder…" disclaimer paragraph entirely — no
+longer needed, since the countdown UI itself is now hidden until a real location
+makes it meaningful. Debug controls (time-jump buttons) explicitly kept for now, at
+the user's choice — tracked as a pre-Aug-12 cleanup item, not removed yet.
+
 ## Milestone status
 - [x] A — PWA skeleton & install
 - [x] B — Countdown + in-app local alerts

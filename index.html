@@ -342,41 +342,54 @@
     text-decoration: line-through;
   }
 
-  #locationHeader {
-    background: var(--bg);
+  /* Countdown tab holds two separate boxes (Location, Countdown) rather than one —
+     override the shared .panel box-look on the outer wrapper (ID beats class, so
+     this doesn't affect Checklist/Camera, which still use plain .panel) and give
+     each inner box its own .info-box styling instead, matching .panel's look. */
+  #panel-countdown {
+    background: none;
+    border: none;
+    padding: 0;
+    min-height: 0;
+  }
+  #panel-countdown.active {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+  .info-box {
+    background: var(--panel);
     border: 1px solid var(--border);
     border-radius: 14px;
-    padding: 1.1rem;
-    margin: 1rem 0 1.5rem;
+    padding: 1.25rem;
   }
-  #locationHeader h3 {
-    margin: 0 0 0.5rem;
-    font-size: 0.95rem;
+  .info-box h2 {
+    margin-top: 0;
+    font-size: 1.05rem;
     color: var(--accent);
   }
-  #locationDescription {
+  .right-muted {
+    text-align: right;
     color: var(--muted);
     font-size: 0.9rem;
-    margin: 0 0 0.75rem;
+    margin: 0.25rem 0;
   }
-  #locationSummary .coverage-pct {
-    text-align: left;
+  #locationBox .coverage-pct {
+    text-align: right;
     font-size: 2.25rem;
-    margin: 0;
+    margin: 0.5rem 0 0;
   }
-  #locationSummary .coverage-sub {
-    text-align: left;
+  #locationBox .coverage-sub {
+    text-align: right;
     margin-top: 0;
   }
-  #locationSummary .coverage-times {
-    margin: 0.75rem 0 0.25rem;
-  }
-  .location-header-buttons {
+  .info-box-buttons {
     display: flex;
+    justify-content: flex-end;
     gap: 0.5rem;
-    margin-top: 0.75rem;
+    margin-top: 0.9rem;
   }
-  .location-header-buttons button {
+  .info-box-buttons button {
     border: 1px solid var(--border);
     background: var(--bg);
     color: var(--text);
@@ -472,47 +485,48 @@
 
 <main>
   <section class="panel active" id="panel-countdown">
-    <h2>Countdown</h2>
 
-    <div id="locationHeader">
-      <h3>Location</h3>
-      <p id="locationDescription">Location not set yet</p>
+    <div class="info-box" id="locationBox">
+      <h2>Location</h2>
+      <p class="right-muted" id="locationDescription">Location is not set</p>
       <div id="locationSummary" style="display:none;">
         <div class="coverage-pct" id="coveragePct">--%</div>
         <p class="coverage-sub" id="coverageLabel"></p>
-        <ul class="coverage-times" id="coverageTimes"></ul>
       </div>
-      <div class="location-header-buttons">
+      <div class="info-box-buttons">
         <button id="setLocationBtn">Set location</button>
         <button id="clearLocationBtn" style="display:none;">Clear location</button>
       </div>
     </div>
 
-    <p class="countdown-target" id="targetLabel">Loading target time&hellip;</p>
-    <div class="countdown-clock" id="clock">
-      <div class="unit"><div class="val" id="clockDays">--</div><div class="lbl">days</div></div>
-      <div class="unit"><div class="val" id="clockHours">--</div><div class="lbl">hrs</div></div>
-      <div class="unit"><div class="val" id="clockMins">--</div><div class="lbl">min</div></div>
-      <div class="unit"><div class="val" id="clockSecs">--</div><div class="lbl">sec</div></div>
-    </div>
-    <button id="notifyBtn">Enable notifications</button>
-    <p id="pushSyncStatus" style="text-align:center; font-size:0.75rem; color:var(--muted); min-height:1em;"></p>
-    <div id="alertBanners"></div>
-    <p style="font-size:0.8rem;">
-      This countdown target is a <strong>placeholder</strong> for now &mdash; Milestone C
-      will replace it with the real local eclipse time for your location.
-    </p>
-    <span class="placeholder-tag">Built in Milestone B</span>
-
-    <details class="debug">
-      <summary>Debug (remove before 12 Aug 2026)</summary>
-      <div class="debug-buttons">
-        <button id="dbgT31">T&minus;31 min before start</button>
-        <button id="dbgT6">T&minus;6 min before start</button>
-        <button id="dbgT1">T&minus;1 min before start</button>
-        <button id="dbgReset">Reset</button>
+    <div class="info-box" id="countdownBox">
+      <h2>Countdown</h2>
+      <p class="right-muted" id="countdownEmptyMsg">Location is not set</p>
+      <div id="countdownSetState" style="display:none;">
+        <p class="countdown-target" id="targetLabel"></p>
+        <div class="countdown-clock" id="clock">
+          <div class="unit"><div class="val" id="clockDays">--</div><div class="lbl">days</div></div>
+          <div class="unit"><div class="val" id="clockHours">--</div><div class="lbl">hrs</div></div>
+          <div class="unit"><div class="val" id="clockMins">--</div><div class="lbl">min</div></div>
+          <div class="unit"><div class="val" id="clockSecs">--</div><div class="lbl">sec</div></div>
+        </div>
+        <button id="notifyBtn">Enable notifications</button>
+        <p id="pushSyncStatus" style="text-align:center; font-size:0.75rem; color:var(--muted); min-height:1em;"></p>
+        <div id="alertBanners"></div>
+        <ul class="coverage-times" id="coverageTimes"></ul>
       </div>
-    </details>
+      <span class="placeholder-tag">Built in Milestone B</span>
+
+      <details class="debug">
+        <summary>Debug (remove before 12 Aug 2026)</summary>
+        <div class="debug-buttons">
+          <button id="dbgT31">T&minus;31 min before start</button>
+          <button id="dbgT6">T&minus;6 min before start</button>
+          <button id="dbgT1">T&minus;1 min before start</button>
+          <button id="dbgReset">Reset</button>
+        </div>
+      </details>
+    </div>
   </section>
 
   <section class="panel" id="panel-checklist">
@@ -635,8 +649,6 @@
   };
   const targetLabel = document.getElementById("targetLabel");
   const alertBanners = document.getElementById("alertBanners");
-
-  targetLabel.textContent = "Counting down to eclipse maximum — " + formatLocal(ec.targetUTC) + " (placeholder)";
 
   function renderCountdown(msRemaining) {
     const clamped = Math.max(0, msRemaining);
@@ -954,6 +966,8 @@
   const coverageLabel = document.getElementById("coverageLabel");
   const coverageTimes = document.getElementById("coverageTimes");
   const locationStatus = document.getElementById("locationStatus");
+  const countdownEmptyMsg = document.getElementById("countdownEmptyMsg");
+  const countdownSetState = document.getElementById("countdownSetState");
 
   function openLocationModal() {
     locationStatus.textContent = "";
@@ -1000,6 +1014,10 @@
       coveragePct.textContent = "0%";
       coverageLabel.textContent = "The eclipse isn't visible from this location.";
       coverageTimes.innerHTML = "";
+      // No countdown is possible here — leave/reset the Countdown box in its
+      // empty state rather than showing a countdown to nothing.
+      countdownEmptyMsg.style.display = "block";
+      countdownSetState.style.display = "none";
       return;
     }
 
@@ -1009,6 +1027,9 @@
       "<li>Start: " + formatLocal(lc.firstContactUTC) + "</li>" +
       "<li>Maximum: " + formatLocal(lc.peakTimeUTC) + "</li>" +
       "<li>End: " + formatLocal(lc.lastContactUTC) + "</li>";
+
+    countdownEmptyMsg.style.display = "none";
+    countdownSetState.style.display = "block";
 
     // Feed the countdown/alert engine: main countdown -> maximum (per user request),
     // T-30/T-5 alerts -> start (so as not to miss the actual start of the eclipse).
@@ -1024,14 +1045,16 @@
     } catch (e) {
       console.error("Could not clear stored location", e);
     }
-    locationDescription.textContent = "Location not set yet";
+    locationDescription.textContent = "Location is not set";
     locationSummary.style.display = "none";
     clearLocationBtn.style.display = "none";
+    countdownEmptyMsg.style.display = "block";
+    countdownSetState.style.display = "none";
     ec.targetUTC = PLACEHOLDER_TARGET;
     ec.startTimeUTC = PLACEHOLDER_TARGET;
     ec.fired.clear();
     alertBanners.innerHTML = "";
-    targetLabel.textContent = "Counting down to eclipse maximum — " + formatLocal(ec.targetUTC) + " (placeholder)";
+    targetLabel.textContent = "";
     tick();
   });
 

@@ -673,3 +673,55 @@ nothing broke in the move — modal opens/closes correctly, `applyLocation()` st
 populates the coverage summary correctly (88% for the Amsterdam test point, matching
 all earlier validation), and clearing still resets the description text correctly.
 Bumped `CACHE_NAME` to `eclipse2026-v18`.
+
+## H1 correction — two separate boxes, not one nested inside the other
+
+User rejected the nested sub-box from the previous step: "you integrated it into
+the box in the tab...let's redo this a bit." The complaint wasn't about scrolling
+(that part worked) — it was that Location read as a small sub-component *inside*
+the Countdown box (h3 heading, nested styling) rather than as its own equal
+section. Asked to clarify two ambiguous points before rebuilding: (1) what happens
+to the ability to change/clear a location once set — user confirmed: same as
+today, i.e. the same two buttons (Set location always visible, Clear location
+visible once set), just repositioned; (2) whether to remove the debug time-jump
+controls while restructuring — user chose to keep them for now.
+
+Restructured `#panel-countdown` from a single `.panel` box into a `flex-column`
+wrapper holding two separate `.info-box` boxes (Location, then Countdown), each
+styled identically to how "Countdown" looked before (own `<h2>`, `var(--panel)`
+background, border, radius, padding) — genuinely equal sections, not one nested in
+the other. Achieved via an ID-specificity CSS override (`#panel-countdown` beats
+`.panel` for background/border/padding/min-height) rather than touching the
+tab-switching JS or `#panel-countdown`'s `class="panel active"` attribute — Checklist
+and Camera tabs are completely unaffected, still plain single `.panel` boxes.
+
+Location box: description (name or coordinates) right-aligned, coverage %
+right-aligned (bold/yellow, matching the original centered treatment just
+right-aligned now), "of the sun covered at maximum" right-aligned underneath,
+Set/Clear buttons right-aligned below that (`justify-content:flex-end`).
+
+Countdown box: shows "Location is not set" (right-aligned, grey) when no location
+is set — the countdown clock and everything else is now hidden entirely rather
+than showing a countdown to a placeholder date, which also fully resolves the
+"remove the placeholder text" ask (deleted the disclaimer paragraph too, since
+there's no longer a placeholder countdown for it to caveat). Once a location is
+set: target label, clock, notify button, push-sync status, alert banners, then —
+moved down to the very end per the user's request — the start/max/end times list
+(previously part of the Location box).
+
+**Edge case handled explicitly, not just carried over by accident:** a location
+where the eclipse isn't visible at all (e.g. a location on the wrong side of the
+Earth) has no valid `peakTimeUTC`/`firstContactUTC` to count down to. Rather than
+letting `applyLocation()` fall through and leave stale state, added an explicit
+branch: the Location box still shows "eclipse isn't visible from this location,"
+but the Countdown box is explicitly kept/reset to its empty state (not shown with
+garbage data).
+
+Verified via headless Chrome, full state-transition test against the real page
+code (not reimplemented logic): initial empty state → apply Amsterdam (visible
+eclipse) confirms both boxes populate correctly, 88% matching all earlier
+validation → clear confirms both boxes reset → apply Sydney, Australia (eclipse
+not visible from there) confirms the Location box shows the "not visible" message
+while the Countdown box correctly stays in its empty state rather than showing a
+bogus countdown. Also re-confirmed tab switching between Countdown/Checklist/Camera
+still works unaffected. Bumped `CACHE_NAME` to `eclipse2026-v19`.
