@@ -725,3 +725,41 @@ not visible from there) confirms the Location box shows the "not visible" messag
 while the Countdown box correctly stays in its empty state rather than showing a
 bogus countdown. Also re-confirmed tab switching between Countdown/Checklist/Camera
 still works unaffected. Bumped `CACHE_NAME` to `eclipse2026-v19`.
+
+## H1 correction #2 — alignment mistake (right instead of left) + two small cleanups
+
+User caught the right-alignment immediately on the previous deploy: "damnit, I made
+my usual right/left mix up... the text should obviously be aligned to the left."
+Explicit rule given: all text in both boxes left-aligned, no exceptions except the
+countdown clock itself, which stays centered as before. Also flagged two smaller
+issues while reviewing: the Countdown box's target line duplicated the maximum
+date/time (already shown in the times list right below it), and a "Built in
+Milestone B" tag was still sitting in the Countdown box with no remaining purpose.
+
+Flipped `text-align` from `right`/`center` to `left` on: `.countdown-target`
+(predates this redesign, but explicitly covered by "no centered text" in the
+Countdown box), `#locationBox .coverage-pct`, `#locationBox .coverage-sub`, and the
+renamed `.tab-muted` class (was `.right-muted` — renamed since keeping a
+now-inaccurate directional name would be a latent readability trap). Flipped
+`.info-box-buttons`'s `justify-content` from `flex-end` to `flex-start`. Left the
+countdown clock's `justify-content: center` untouched, per the explicit "I do want
+the countdown timer centred as is." Simplified `targetLabel`'s text from a dynamic
+string embedding the maximum date/time to a static "Counting down to the local
+eclipse maximum." Removed the `<span class="placeholder-tag">Built in Milestone
+B</span>` from the Countdown box (Checklist's/Camera's equivalent tags weren't
+mentioned, left untouched — the ask was scoped to the Countdown box specifically).
+
+Scoping note for future reference: interpreted "no right alignment, no centered
+text" as covering the elements this and the prior redesign step introduced or
+already touched (Location/Countdown box text), not a blanket app-wide
+re-alignment — left `#notifyBtn`'s centering, `#pushSyncStatus`, and
+`#alertBanners` untouched, since those predate this redesign round and weren't
+flagged as wrong.
+
+No errors encountered. Verified via headless Chrome against the real page code:
+computed `text-align` confirmed `left` for `locationDescription`, `coveragePct`,
+`coverageLabel`, and `countdownEmptyMsg`; computed `justify-content` confirmed
+`center` for the clock (unchanged, correct) and `flex-start` for the button row;
+confirmed `targetLabel`'s text reads exactly "Counting down to the local eclipse
+maximum" with no embedded date; confirmed no `.placeholder-tag` element remains
+inside `#countdownBox`. Bumped `CACHE_NAME` to `eclipse2026-v20`.

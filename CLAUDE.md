@@ -151,17 +151,28 @@ wanted Location to read as equal to Countdown, not subordinate to it. Restructur
 stripped via an ID-specificity override, so it doesn't affect Checklist/Camera,
 which still use plain `.panel`) holding **two separate `.info-box` boxes**, each
 with its own `<h2>` heading styled identically to "Countdown": a **Location** box
-(name/coordinates, coverage %, Set/Clear buttons — all right-aligned) followed by a
-**Countdown** box (clock, notifications, start/max/end times list — moved to the
-bottom of this box). Both boxes now toggle between an empty message ("Location is
-not set") and their populated content together, driven by `applyLocation()`/the
-clear handler — including a location where the eclipse isn't visible at all
-(handled explicitly: shows the location's info but keeps the Countdown box in its
-empty state, since there's no valid target time to count down to there). Removed
-the "This countdown target is a placeholder…" disclaimer paragraph entirely — no
-longer needed, since the countdown UI itself is now hidden until a real location
-makes it meaningful. Debug controls (time-jump buttons) explicitly kept for now, at
-the user's choice — tracked as a pre-Aug-12 cleanup item, not removed yet.
+(name/coordinates, coverage %, Set/Clear buttons) followed by a **Countdown** box
+(clock, notifications, start/max/end times list — moved to the bottom of this box).
+Both boxes now toggle between an empty message ("Location is not set") and their
+populated content together, driven by `applyLocation()`/the clear handler —
+including a location where the eclipse isn't visible at all (handled explicitly:
+shows the location's info but keeps the Countdown box in its empty state, since
+there's no valid target time to count down to there). Removed the "This countdown
+target is a placeholder…" disclaimer paragraph entirely — no longer needed, since
+the countdown UI itself is now hidden until a real location makes it meaningful.
+Debug controls (time-jump buttons) explicitly kept for now, at the user's choice —
+tracked as a pre-Aug-12 cleanup item, not removed yet.
+
+**H1 correction #2 — fixed alignment (was right, should be left), done:** the two
+new boxes' text was initially right-aligned, a mistake caught by the user
+immediately ("my usual right/left mix up"). Switched all text in both boxes to
+left-aligned (the countdown clock itself stays centered, as explicitly requested).
+Renamed the `.right-muted` CSS class to `.tab-muted` so its name doesn't lie about
+its own alignment. Also fixed two smaller issues flagged in the same pass: the
+Countdown box's target line was repeating the maximum date/time that's already
+shown in the times list below it — simplified to a static "Counting down to the
+local eclipse maximum" — and removed the "Built in Milestone B" tag from the
+Countdown box (a Milestone-tracking leftover, no longer relevant).
 
 ## Milestone status
 - [x] A — PWA skeleton & install
