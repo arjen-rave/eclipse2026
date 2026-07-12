@@ -839,3 +839,57 @@ declared) resolved it cleanly with no behavior change otherwise.
 
 Added `sun-position.js` to the service worker's precache list, bumped `CACHE_NAME`
 to `eclipse2026-v21`.
+
+## Milestone E follow-up — replace in-app capture with native camera app handoff
+
+User confirmed the whole flow works on-device (camera, aiming arrows, compass,
+capture, download/share) but flagged a real gap: no access to their phone's normal
+camera controls (exposure, focus, zoom, shooting modes/themes) compared to using
+their native camera app directly.
+
+Researched what's actually achievable before proposing anything: exposure
+compensation and basic focus mode ARE exposed to the web via
+`MediaStreamTrack.applyConstraints()` on some Android Chrome/device combinations,
+but support is inconsistent and unverifiable without testing on the specific
+device; zoom was already out of scope per the plan; and camera app "themes"/shooting
+modes are not reachable from any web API at all — a hard platform boundary, not an
+effort/scope question. Laid this out for the user rather than silently picking an
+approach, since part of the ask was flatly impossible and the rest was
+partial/unverified at best.
+
+User chose to drop in-app capture entirely and have this tab hand off to the
+native camera app once aimed. Implementation: replaced the whole
+canvas-capture/download/share/retake flow with a single
+`<input type="file" accept="image/*" capture="environment">` — a standard,
+well-supported HTML mechanism (not a fragile custom `intent://` URL scheme, which
+was the first approach considered and explicitly rejected after research showed it
+un/under-documented for this exact use case) that launches the phone's actual
+native camera app on Android Chrome, with every one of its normal controls intact.
+The live `getUserMedia` preview and the reticle/arrow aiming guidance stay exactly
+as built — the tab's remaining job is purely "point here," and the native app now
+fully owns the actual photo.
+
+No errors encountered. Verified via headless Chrome against the real page code:
+confirmed the old capture elements (`captureBtn`, `captureResult`) no longer exist
+in the DOM; confirmed the new file input has the correct
+`accept="image/*" capture="environment"` attributes; re-confirmed the camera
+preview, numeric aim-guidance fallback, and tab-switch-stops-the-stream behavior
+all still work exactly as before (same mocked-`MediaStream` technique as the
+original Milestone E test); simulated the file input's `change` event (as if the
+native camera app had returned) and confirmed the "Photo saved — check your
+gallery" confirmation text renders correctly. Bumped `CACHE_NAME` to
+`eclipse2026-v22`.
+
+**Process note:** during this work, the user flagged that earlier `taskkill //F
+//IM chrome.exe` cleanup calls in this session had been killing the user's own,
+real Chrome windows — not just the headless test instances, since that command
+kills every Chrome process on the machine by name, unscoped to what this session
+actually started. All headless test browsing itself was already isolated via a
+dedicated `--user-data-dir` per invocation (never touching the user's real
+profile/history/logins), but the blanket-kill cleanup habit was a separate,
+real problem, confirmed by the user to have closed their browser windows on at
+least two occasions. Fixed going forward: only kill specific PIDs this session
+itself started (found via `netstat`/the background job's own PID), never a
+blanket `taskkill //F //IM chrome.exe` — and in practice, `--dump-dom` Chrome
+instances exit on their own once they've produced output, so most of the time no
+explicit kill is even needed.

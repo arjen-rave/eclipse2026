@@ -194,8 +194,23 @@ pattern as the Countdown box) until one exists.
   a directional aid, not an astrophotography tool — no zoom, phone camera renders
   the eclipsed sun as a small dot regardless of aim), live camera preview
   (`getUserMedia`, rear camera), an on-screen reticle + directional arrows driven
-  by the difference between device orientation and computed sun position, capture-
-  to-canvas with download/share.
+  by the difference between device orientation and computed sun position.
+- **Photo capture — superseded once, now hands off to the native camera app.**
+  Originally built with an in-app capture-to-canvas + download/share flow (matching
+  the plan's original scope). User feedback after trying it on-device: missing
+  their phone's normal camera controls (exposure, focus, zoom, shooting
+  modes/themes) compared to the native app. Investigated what's actually
+  achievable: exposure/focus are partially addressable via `MediaStreamTrack`
+  constraints (inconsistent Android support, unverifiable without more on-device
+  testing), zoom was already out of scope, and camera app "themes"/modes are a
+  hard platform wall — no web API exposes native camera-app modes at all, full
+  stop, not an implementation gap. Given that ceiling, replaced the whole in-app
+  capture flow with `<input type="file" accept="image/*" capture="environment">`
+  — tapping it launches the phone's actual native camera app, with every one of
+  its normal controls intact, no web limitations whatsoever. This tab's job is now
+  purely aiming; the native app owns the actual photo entirely. (The `getUserMedia`
+  live preview stays — the reticle/arrows still need it for real-time aiming
+  feedback — it's specifically the capture step that moved to the native app.)
 - **Orientation handling**: feature-detects `DeviceOrientationEvent.requestPermission`
   (iOS-only gesture-gated permission API) and shows an explicit "Enable compass"
   button only when it exists; falls back to a plain numeric readout ("point toward

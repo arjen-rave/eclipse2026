@@ -390,7 +390,8 @@
     margin-top: 0.9rem;
   }
   .info-box-buttons button,
-  .info-box-buttons a {
+  .info-box-buttons a,
+  .info-box-buttons label {
     border: 1px solid var(--border);
     background: var(--bg);
     color: var(--text);
@@ -399,6 +400,13 @@
     font-size: 0.8rem;
     text-decoration: none;
     display: inline-block;
+    cursor: pointer;
+  }
+  #openCameraAppLabel {
+    background: var(--accent);
+    color: var(--bg);
+    border-color: var(--accent);
+    font-weight: 600;
   }
   #setLocationBtn {
     background: var(--accent);
@@ -493,13 +501,6 @@
   .aim-arrow.right { right: 0.6rem; top: 50%; transform: translateY(-50%); }
   .aim-arrow.up { top: 0.6rem; left: 50%; transform: translateX(-50%); }
   .aim-arrow.down { bottom: 0.6rem; left: 50%; transform: translateX(-50%); }
-
-  #capturedImg {
-    display: block;
-    width: 100%;
-    border-radius: 10px;
-    margin-top: 1rem;
-  }
 </style>
 </head>
 <body>
@@ -612,9 +613,12 @@
         Never look directly at the sun, even briefly, while using this. Keep your
         eclipse glasses on at all times &mdash; only look at <strong>this screen</strong>,
         never along the same line of sight as the camera. This is a
-        &ldquo;find the sun&rdquo; aid, not a photography tool: your phone has no
-        optical zoom, so the eclipsed sun will appear as a small dot in any photo,
-        regardless of how well aimed it is.
+        &ldquo;find the sun&rdquo; aid, not a photography tool &mdash; it helps you
+        aim, then hands off to your phone's own camera app for the actual photo,
+        with all its normal settings (exposure, focus, zoom, modes). Your phone's
+        optical zoom won't get you a dramatically better eclipse photo either way
+        &mdash; the sun will still appear as a small dot &mdash; but this way you at
+        least keep every control you're used to.
       </p>
 
       <div id="cameraPreviewWrap">
@@ -632,17 +636,10 @@
       <div class="info-box-buttons" id="cameraControls">
         <button id="startCameraBtn">Start camera</button>
         <button id="enableCompassBtn" style="display:none;">Enable compass</button>
-        <button id="captureBtn" style="display:none;">Capture photo</button>
+        <label id="openCameraAppLabel" for="openCameraAppInput">Open camera app</label>
+        <input type="file" id="openCameraAppInput" accept="image/*" capture="environment" style="display:none;" />
       </div>
-
-      <div id="captureResult" style="display:none;">
-        <img id="capturedImg" alt="Captured photo" />
-        <div class="info-box-buttons">
-          <a id="downloadCaptureLink" download="eclipse-photo.png">Download photo</a>
-          <button id="shareCaptureBtn" style="display:none;">Share</button>
-          <button id="retakeBtn">Retake</button>
-        </div>
-      </div>
+      <p class="tab-muted" id="cameraAppStatus"></p>
     </div>
   </section>
 </main>
@@ -1364,14 +1361,8 @@
   const cameraStatus = document.getElementById("cameraStatus");
   const startCameraBtn = document.getElementById("startCameraBtn");
   const enableCompassBtn = document.getElementById("enableCompassBtn");
-  const captureBtn = document.getElementById("captureBtn");
-  const captureResult = document.getElementById("captureResult");
-  const capturedImg = document.getElementById("capturedImg");
-  const downloadCaptureLink = document.getElementById("downloadCaptureLink");
-  const shareCaptureBtn = document.getElementById("shareCaptureBtn");
-  const retakeBtn = document.getElementById("retakeBtn");
-  const cameraPreviewWrap = document.getElementById("cameraPreviewWrap");
-  const cameraControls = document.getElementById("cameraControls");
+  const openCameraAppInput = document.getElementById("openCameraAppInput");
+  const cameraAppStatus = document.getElementById("cameraAppStatus");
   const aimReticle = document.getElementById("aimReticle");
   const arrowLeft = document.querySelector(".aim-arrow.left");
   const arrowRight = document.querySelector(".aim-arrow.right");
@@ -1513,7 +1504,6 @@
       cameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
       cameraVideo.srcObject = cameraStream;
       startCameraBtn.style.display = "none";
-      captureBtn.style.display = "inline-block";
       startOrientationTracking();
       if (aimUpdateTimer) clearInterval(aimUpdateTimer);
       aimUpdateTimer = setInterval(updateAimGuidance, 500);
@@ -1540,46 +1530,20 @@
     deviceHeading = null;
     deviceAltitude = null;
     startCameraBtn.style.display = "inline-block";
-    captureBtn.style.display = "none";
     enableCompassBtn.style.display = "none";
     cameraStatus.textContent = "";
   }
 
-  captureBtn.addEventListener("click", () => {
-    const canvas = document.createElement("canvas");
-    canvas.width = cameraVideo.videoWidth;
-    canvas.height = cameraVideo.videoHeight;
-    canvas.getContext("2d").drawImage(cameraVideo, 0, 0, canvas.width, canvas.height);
-    canvas.toBlob((blob) => {
-      if (!blob) return;
-      const url = URL.createObjectURL(blob);
-      capturedImg.src = url;
-      downloadCaptureLink.href = url;
-      captureResult.style.display = "block";
-      cameraPreviewWrap.style.display = "none";
-      cameraControls.style.display = "none";
-
-      if (navigator.share && navigator.canShare) {
-        const file = new File([blob], "eclipse-photo.png", { type: "image/png" });
-        if (navigator.canShare({ files: [file] })) {
-          shareCaptureBtn.style.display = "inline-block";
-          shareCaptureBtn.onclick = async () => {
-            try {
-              await navigator.share({ files: [file], title: "Eclipse photo" });
-            } catch (e) {
-              // User cancelled the share sheet — not an error condition.
-            }
-          };
-        }
-      }
-    }, "image/png");
-  });
-
-  retakeBtn.addEventListener("click", () => {
-    captureResult.style.display = "none";
-    cameraPreviewWrap.style.display = "block";
-    cameraControls.style.display = "flex";
-    shareCaptureBtn.style.display = "none";
+  // Tapping this label triggers the hidden file input below, which — thanks to
+  // accept="image/*" capture="environment" — launches the phone's own native
+  // camera app on Android Chrome, with every one of its normal controls (exposure,
+  // focus, zoom, shooting modes), none of which a web page can otherwise access.
+  // This tab's job is purely aiming; the actual photo is entirely the native app's.
+  openCameraAppInput.addEventListener("change", () => {
+    if (openCameraAppInput.files && openCameraAppInput.files.length > 0) {
+      cameraAppStatus.textContent = "Photo saved — check your phone's gallery/photos app.";
+    }
+    openCameraAppInput.value = ""; // reset so selecting/capturing again re-fires 'change'
   });
 
   refreshCameraTabState();
