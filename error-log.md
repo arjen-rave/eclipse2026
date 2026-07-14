@@ -1232,3 +1232,39 @@ previously pending clear first, so a fast-following message isn't wiped early by
 an older scheduled clear meant for the message it replaced.
 
 Bumped `CACHE_NAME` to `eclipse2026-v27`.
+
+## I2 follow-up — collapsible warning, shrink the landscape preview
+
+After confirming I2 on-device, user asked for the Camera tab's safety warning to
+become collapsible in both orientations (short "Warning" header, open by
+default), and for the landscape preview specifically to shrink so it fits on
+screen without scrolling while actively aiming.
+
+Warning: converted `#cameraWarning` from a plain `<p class="checklist-warning">`
+into `<details class="checklist-warning collapsible-box" open><summary>Warning</summary>...`
+— reused the existing `.collapsible-box` class for the chevron/cursor/marker-hiding
+mechanics (same pattern as the Safety checklist box already uses), added one small
+new rule for the header's boldness (`.checklist-warning summary { font-weight: 700; }`,
+since there's no `<h2>` here) and a margin reset for the now-nested `<p>`.
+
+Preview sizing: previous `aspect-ratio: 4/3` computed *height* from a fixed-fraction
+*width* (`1.2fr` grid column) — on a wide landscape viewport this produced a box
+taller than the screen, exactly the complaint. Flipped the direction: set an
+explicit `height: 36vh` with `width: auto`, so `aspect-ratio` now derives width
+from that capped height instead. Changed the grid column from `1.2fr` to `auto`
+to match (shrinks to the preview's now height-driven width rather than stretching
+it). Also reclaimed some general vertical padding in landscape: `main`'s bottom
+nav-clearance padding 5.5rem → 4.5rem (checked against the nav's actual rendered
+height first — button padding + icon + label ≈ 55-65px, so 4.5rem/72px still
+leaves comfortable headroom), and Camera panel's own padding tightened to match
+the Overview tab's boxes (1.25rem → 0.9rem/1.1rem).
+
+No errors encountered. Verified via headless-Chrome screenshots using a throwaway
+test copy (same approach as I2): at a realistic landscape height (800×400) the
+preview, collapsed warning, and both buttons all fit with no scrolling required;
+at a deliberately extreme height (800×360) it fits with the warning collapsed,
+and is only slightly short with the warning left open — expected, and exactly the
+scenario the collapse option exists for. Re-checked the Overview tab afterward to
+confirm the shared `main`/nav padding change didn't regress its landscape layout
+from Milestone I1 — still renders correctly. Bumped `CACHE_NAME` to
+`eclipse2026-v28`.

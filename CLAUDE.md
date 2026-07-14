@@ -270,6 +270,39 @@ first so a fast-following message (e.g. "Unsubscribed ✓" right after
 "Unsubscribing…") always gets its own full display window rather than being wiped
 early.
 
+**I2 follow-up — collapsible warning + shrink the landscape preview, done:** after
+confirming I2 on-device, user asked for two more changes to the Camera tab, in
+both orientations: (1) the on-screen safety warning should be collapsible, with a
+short "Warning" header, open by default; (2) in landscape specifically, the video
+preview was "too large" — the user wants it to fit on screen without having to
+scroll while actively aiming.
+
+For (1): converted `#cameraWarning` from a plain `<p class="checklist-warning">`
+into a `<details class="checklist-warning collapsible-box" open>` with
+`<summary>Warning</summary>`, reusing the existing `.collapsible-box` chevron/
+cursor/marker-hiding styles (added via that shared class, no new CSS needed for
+the toggle mechanics — same pattern as the Safety checklist box) plus one small
+new rule (`.checklist-warning summary { font-weight: 700; }`) since there's no
+`<h2>` here to inherit boldness from. Works identically in both orientations since
+it's the same DOM element either way — only its grid placement changes in
+landscape (unchanged `#cameraWarning { grid-area: warning; }`).
+
+For (2): the previous implementation sized the preview from a fixed share of the
+row's *width* (`aspect-ratio` computing height from a wide grid column) — on a
+wide landscape viewport this produced a very tall box, taller than the screen.
+Flipped the sizing direction: `#cameraPreviewWrap` now sets an explicit `height:
+36vh` with `width: auto`, letting `aspect-ratio: 4/3` derive width from that
+capped height instead of the other way around, and the grid column changed from
+a fixed fraction (`1.2fr`) to `auto` so it shrinks to match. Also reclaimed a bit
+of general vertical padding in landscape (`main`'s bottom nav-clearance padding
+5.5rem → 4.5rem, still comfortably above the nav's real ~55-65px height; Camera
+panel's own padding tightened to match the Overview tab's boxes). Verified via
+headless-Chrome screenshots at both a realistic landscape height (800×400 —
+preview, collapsed warning, and both buttons all fit with no scrolling needed)
+and a deliberately extreme one (800×360 — fits with the warning collapsed, still
+slightly short with it left open, which is expected and is exactly what the
+collapse option is for).
+
 ## Milestone E — Camera "find the sun" aid
 Reuses the currently-set location (same one used for coverage %) rather than a
 separate live GPS lookup — one location source of truth, avoids requesting
@@ -446,6 +479,11 @@ issues, both fixed:
         user while confirming I1 on-device: `#pushSyncStatus` ("Synced ✓" etc.)
         now clears itself after 5s instead of sitting under the notify button
         permanently — a toast, not a permanent status line.
+  - [x] I2 follow-up — safety warning is now a collapsible `<details>` (open by
+        default, "Warning" header), in both orientations; landscape preview
+        height capped (`36vh`, width auto via `aspect-ratio`) instead of being
+        driven by a fixed share of the row's width, so it fits on screen without
+        scrolling while aiming
 - [x] G — Full dry-run rehearsal (mandatory before 12 Aug 2026) — complete
   - [x] G1 — Simplified scope: T-30/T-5 alerts only need the location set at some
         point before the event (not a live GPS fix in the moment), since they're

@@ -305,6 +305,12 @@
     line-height: 1.4;
     margin: 0.75rem 0 0;
   }
+  .checklist-warning summary {
+    font-weight: 700;
+  }
+  .checklist-warning p {
+    margin: 0.5rem 0 0;
+  }
   .checklist-progress {
     text-align: center;
     font-weight: 600;
@@ -411,6 +417,12 @@
     #panel-countdown.active .collapsible-box {
       grid-column: 1 / -1;
     }
+    /* Height is scarce in landscape (short viewport) — claw back a bit of the
+       bottom nav-clearance padding (still comfortably above the nav's actual
+       ~55-65px height) and the panel's own padding, mainly for the Camera tab's
+       benefit (see the height-capped preview below). */
+    main { padding-bottom: 4.5rem; }
+    #panel-camera { padding: 0.9rem 1.1rem; }
   }
   .tab-muted {
     text-align: left;
@@ -554,7 +566,7 @@
   @media (orientation: landscape) {
     #cameraContent {
       display: grid;
-      grid-template-columns: 1.2fr 1fr;
+      grid-template-columns: auto 1fr;
       grid-template-areas:
         "video warning"
         "video status"
@@ -564,7 +576,15 @@
       align-items: start;
     }
     #cameraWarning { grid-area: warning; margin: 0; }
-    #cameraPreviewWrap { grid-area: video; aspect-ratio: 4 / 3; margin: 0; }
+    /* Height-first, not width-first: capped to a viewport-height fraction so the
+       preview (and the reticle/arrows aiming aid inside it) always fits on screen
+       without scrolling, however wide the landscape viewport is. Width is auto so
+       aspect-ratio derives it from that capped height, instead of the previous
+       behavior of taking a fixed share of the row's width and letting height
+       (and therefore total page height) grow however tall that implied. The
+       column track is "auto" (not a fraction) to match, so it shrinks to the
+       preview's actual (height-driven) width rather than stretching it back out. */
+    #cameraPreviewWrap { grid-area: video; aspect-ratio: 4 / 3; height: 36vh; width: auto; margin: 0; }
     #cameraStatus { grid-area: status; }
     #cameraControls { grid-area: controls; }
     #cameraAppStatus { grid-area: appstatus; }
@@ -680,17 +700,20 @@
     </div>
 
     <div id="cameraContent" class="hidden">
-      <p class="checklist-warning" id="cameraWarning">
-        Never look directly at the sun, even briefly, while using this. Keep your
-        eclipse glasses on at all times &mdash; only look at <strong>this screen</strong>,
-        never along the same line of sight as the camera. This is a
-        &ldquo;find the sun&rdquo; aid, not a photography tool &mdash; it helps you
-        aim, then hands off to your phone's own camera app for the actual photo,
-        with all its normal settings (exposure, focus, zoom, modes). Your phone's
-        optical zoom won't get you a dramatically better eclipse photo either way
-        &mdash; the sun will still appear as a small dot &mdash; but this way you at
-        least keep every control you're used to.
-      </p>
+      <details class="checklist-warning collapsible-box" id="cameraWarning" open>
+        <summary>Warning</summary>
+        <p>
+          Never look directly at the sun, even briefly, while using this. Keep your
+          eclipse glasses on at all times &mdash; only look at <strong>this screen</strong>,
+          never along the same line of sight as the camera. This is a
+          &ldquo;find the sun&rdquo; aid, not a photography tool &mdash; it helps you
+          aim, then hands off to your phone's own camera app for the actual photo,
+          with all its normal settings (exposure, focus, zoom, modes). Your phone's
+          optical zoom won't get you a dramatically better eclipse photo either way
+          &mdash; the sun will still appear as a small dot &mdash; but this way you at
+          least keep every control you're used to.
+        </p>
+      </details>
 
       <div id="cameraPreviewWrap">
         <video id="cameraVideo" autoplay playsinline muted></video>
