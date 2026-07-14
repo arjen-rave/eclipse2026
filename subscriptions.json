@@ -65,5 +65,11 @@
       }
     },
     "checklistComplete": false
+  },
+  "https://example.com/DRYRUN-COMPLETE-TEST": {
+    "subscription": {
+      "endpoint": "https://example.com/DRYRUN-COMPLETE-TEST"
+    },
+    "checklistComplete": true
   }
 }
