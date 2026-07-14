@@ -1135,3 +1135,46 @@ demand; confirmed all 6 checklist checkboxes still render with correct label tex
 functions correctly after a checkbox change; confirmed the three boxes'
 DOM order inside the Overview tab is Location → Countdown → Checklist as intended.
 Bumped `CACHE_NAME` to `eclipse2026-v24`.
+
+## H3 follow-up — tighten Overview tab spacing
+
+After confirming H3 on-device, user reported the collapsed Safety checklist still
+required scrolling to see, and asked for reduced top/bottom spacing on all the
+boxes to fix it. Reported the current values first (per their request), then on
+approval: `.info-box` padding 1.25rem → 0.9rem/1.1rem; gap between the three boxes
+1rem → 0.65rem; `main`'s top padding 1rem → 0.75rem; `.info-box h2` margin changed
+from `margin-top: 0` to `margin: 0` (removing the default browser bottom margin
+under each heading).
+
+No errors encountered — checked before removing the h2 bottom margin that the
+element immediately following each heading (`.tab-muted`, `.checklist-warning`)
+already carries its own small top margin, so headings wouldn't visually collide
+with the content below them. Verified via a headless-Chrome DOM render (no JS
+errors) and user confirmed on-device that the checklist now fits without
+scrolling. Bumped `CACHE_NAME` to `eclipse2026-v25`.
+
+## Milestone I1 — Overview tab landscape layout
+
+User asked for a landscape mode; a scoping question clarified they wanted a real
+two-column redesign for both tabs, not just a non-breaking reflow. This entry
+covers the manifest change (applies to both tabs) plus the Overview tab half
+(I1) — Camera tab (I2) is a separate, not-yet-started step.
+
+Changed `manifest.json`'s `"orientation"` from `"portrait"` to `"any"` — required
+before any landscape CSS could take effect on an installed (home-screen) PWA
+instance, since the manifest lock overrides physical device rotation entirely.
+
+Added a `@media (orientation: landscape)` block switching `#panel-countdown.active`
+from `flex-direction: column` to `display: grid; grid-template-columns: 1fr 1fr`.
+Location and Countdown land in the two columns via default grid auto-placement
+(no explicit `grid-column` needed for either) since they're the first two children;
+the Safety checklist gets `grid-column: 1 / -1` (matched via its existing
+`.collapsible-box` class, so no new selector/class was needed) to stay a
+full-width row underneath. Pure CSS, no HTML or JS changes — the tab-switching
+logic, checklist state, and countdown engine were not touched.
+
+No errors encountered. Verified via headless Chrome screenshots at landscape
+phone window dimensions: 812×375 confirmed Location and Countdown render side by
+side; 812×700 (taller, to see content below the fold) confirmed the Safety
+checklist renders as a full-width collapsed row beneath both, with correct nav
+bar layout underneath. Bumped `CACHE_NAME` to `eclipse2026-v26`.

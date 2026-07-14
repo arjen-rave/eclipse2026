@@ -394,6 +394,19 @@
   .collapsible-box[open] summary::after {
     transform: rotate(90deg);
   }
+  /* Landscape: Location and Countdown side by side (width to spare, height
+     scarce); Checklist stays a full-width row underneath since it's collapsed
+     by default and doesn't need a whole column to itself. */
+  @media (orientation: landscape) {
+    #panel-countdown.active {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.65rem;
+    }
+    #panel-countdown.active .collapsible-box {
+      grid-column: 1 / -1;
+    }
+  }
   .tab-muted {
     text-align: left;
     color: var(--muted);

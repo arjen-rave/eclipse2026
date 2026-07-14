@@ -191,6 +191,44 @@ deleted) the debug time-jump controls, both the HTML block and its JS wiring, wi
 a note on what to uncomment together to bring it back — kept in source for quick
 re-testing, per the user's explicit request not to lose it entirely.
 
+**H3 follow-up — spacing tightened, done:** after seeing H3 on-device, user asked
+to reduce top/bottom spacing across the Overview tab's boxes so the collapsed
+Safety checklist would fit on-screen alongside Location and Countdown without
+scrolling. Reduced `.info-box` padding (1.25rem → 0.9rem/1.1rem), the gap between
+the three boxes (1rem → 0.65rem), `main`'s top padding (1rem → 0.75rem, sides/
+bottom unchanged), and removed the default browser bottom margin under each box's
+`<h2>` (now `margin: 0`, was `margin-top: 0` only) — safe to remove since the
+element immediately following each heading already carries its own small top
+margin as a buffer. Confirmed on-device: fits without scrolling.
+
+## Milestone I — Landscape mode (in progress)
+User asked for a landscape mode ("turn the phone sideways"), then, via a scoping
+question, specifically asked for a real two-tab redesign rather than a minimal
+reflow-only approach — both Overview and Camera get considered landscape layouts,
+not just "doesn't visually break."
+
+`manifest.json`'s `"orientation": "portrait"` — which was hard-locking the
+installed PWA to portrait regardless of how the phone was physically held — changed
+to `"any"`, since this needed to change before any landscape CSS could ever be
+reached on an installed (not just browser-tab) instance.
+
+**I1 — Overview tab, done:** added a `@media (orientation: landscape)` block that
+switches `#panel-countdown.active` from a single flex column to a 2-column CSS
+grid (`grid-template-columns: 1fr 1fr`) — Location and Countdown boxes land side
+by side automatically (default grid auto-placement, no explicit positioning
+needed), while the Safety checklist (matched via its existing `.collapsible-box`
+class) gets `grid-column: 1 / -1` to stay a full-width row underneath, since it's
+collapsed by default and doesn't need a whole column to itself. Pure CSS — no
+HTML/JS changes, so none of the existing tab logic, checklist state, or countdown
+engine was touched. Verified via a headless-Chrome screenshot at landscape phone
+window dimensions (812×375 and 812×700, to see both the two-column row and the
+full-width checklist row beneath it) — both boxes rendered side by side as
+intended, checklist rendered as a full-width collapsed row below.
+
+Not yet done: **I2 — Camera tab landscape layout** (video preview + side controls
+via `grid-template-areas`, landscape-shaped preview aspect ratio, still to be
+implemented per the plan agreed with the user).
+
 ## Milestone E — Camera "find the sun" aid
 Reuses the currently-set location (same one used for coverage %) rather than a
 separate live GPS lookup — one location source of truth, avoids requesting
@@ -338,10 +376,21 @@ issues, both fixed:
         confirmed the commit message and that the entry was actually gone) before
         asking for on-device confirmation — user confirmed the button toggles
         correctly and re-subscribing afterward also works.
-- [ ] H — Layout redesign (4 tabs → 2 tabs), in progress — see "Layout redesign" above
+- [x] H — Layout redesign (4 tabs → 2 tabs) — complete, see "Layout redesign" above
   - [x] H1 — Coverage moved from a tab to a persistent header + location-picker modal
         (incl. box styling + heading refinements)
   - [x] H2 — Generalized Netherlands-specific copy for the wider European region
+  - [x] H3 — Checklist consolidated into the Overview tab as a collapsible box,
+        debug controls commented out, tab renamed to "Overview," spacing tightened
+        so all three boxes fit without scrolling
+- [ ] I — Landscape mode, in progress
+  - [x] I1 — `manifest.json` orientation lock changed from `"portrait"` to `"any"`;
+        Overview tab: Location and Countdown boxes side by side in landscape
+        (`@media (orientation: landscape)`, pure CSS, no HTML/JS changes), Checklist
+        stays a full-width row underneath. Verified via a headless-Chrome screenshot
+        at landscape phone dimensions.
+  - [ ] I2 — Camera tab landscape layout (video preview + side controls via
+        `grid-template-areas`, landscape-shaped preview aspect ratio)
 - [x] G — Full dry-run rehearsal (mandatory before 12 Aug 2026) — complete
   - [x] G1 — Simplified scope: T-30/T-5 alerts only need the location set at some
         point before the event (not a live GPS fix in the moment), since they're
