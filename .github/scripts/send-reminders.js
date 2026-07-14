@@ -39,7 +39,7 @@ const REMINDERS = [
   { id: "day7", dateAmsterdam: "2026-08-05", conditional: false, message: "One week to go! Check your eclipse safety checklist." },
   { id: "day3", dateAmsterdam: "2026-08-09", conditional: true, message: "3 days to go — your eclipse checklist isn't complete yet. Get everything ready!" },
   { id: "day1", dateAmsterdam: "2026-08-11", conditional: false, message: "Tomorrow's the day! Make sure everything is ready for the eclipse." },
-  { id: "dayOf", dateAmsterdam: "2026-08-12", conditional: false, message: "Don't forget — the eclipse is today! Get everything ready for this evening." },
+  { id: "dayOf", dateAmsterdam: "2026-08-12", conditional: false, message: "Don't forget — the eclipse is today! Get everything ready for this evening, and make sure your viewing location is set in the app so the T-30/T-5 alerts fire correctly." },
 ];
 
 function readJson(file, fallback) {

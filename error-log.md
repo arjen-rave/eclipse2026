@@ -893,3 +893,27 @@ itself started (found via `netstat`/the background job's own PID), never a
 blanket `taskkill //F //IM chrome.exe` — and in practice, `--dump-dom` Chrome
 instances exit on their own once they've produced output, so most of the time no
 explicit kill is even needed.
+
+## Milestone G1 — scope simplification: no live-GPS test needed
+
+Before diving into the full dry-run plan, user pointed out the "verify T-30/T-5
+alerts work from a live GPS fix" item didn't actually need separate testing: those
+alerts are derived from whatever location is already saved (via any method — geo,
+address search, or manual entry) at the time `applyLocation()` last ran, not from a
+continuous/live GPS stream at the exact moment of the eclipse. The real
+requirement is simply "have a location set in the app before the event," which is
+a reminder/checklist concern, not a technical gap needing hardware-in-the-loop
+testing. Dropped that test item from G's plan entirely.
+
+Acted on the implication directly: added a location-set hint to the day-of
+reminder's message text (`.github/scripts/send-reminders.js`), and reworded the
+existing `knowStartTime` checklist item to be an explicit, actionable step ("set
+your location in the app") rather than the vaguer "know your start time" —
+deliberately kept the same `id` so this doesn't reset anyone's already-checked
+state in `localStorage` on a device that had ticked the old version of this item.
+Also fixed a stale reference to "the Coverage tab" in that same item's label — a
+leftover from the Milestone H1 redesign that moved coverage out of its own tab
+into the Countdown tab's Location box.
+
+No errors encountered. Verified via headless Chrome: checklist item renders with
+the updated text, no console errors. Bumped `CACHE_NAME` to `eclipse2026-v23`.

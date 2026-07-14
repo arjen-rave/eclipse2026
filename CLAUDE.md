@@ -287,5 +287,16 @@ pattern as the Countdown box) until one exists.
   - [x] H1 — Coverage moved from a tab to a persistent header + location-picker modal
         (incl. box styling + heading refinements)
   - [x] H2 — Generalized Netherlands-specific copy for the wider European region
-- [ ] G — Full dry-run rehearsal (mandatory before 12 Aug 2026) — must include
-      verifying Day-3's checklist-conditional skip specifically (see F5b note)
+- [ ] G — Full dry-run rehearsal (mandatory before 12 Aug 2026), in progress
+  - [x] G1 — Simplified scope: T-30/T-5 alerts only need the location set at some
+        point before the event (not a live GPS fix in the moment), since they're
+        derived from whatever location is already saved. Added a location-set hint
+        to the day-of reminder text, and reworded a checklist item (kept the same
+        `id` to avoid losing existing testers' checked state) to make "set your
+        location" an explicit, actionable checklist step rather than the vaguer
+        "know your start time." Also fixed a stale "Coverage tab" reference left
+        over from the Milestone H1 tab redesign.
+  - [ ] G2 — Safe dry-run/simulate-date testing of Day-7/-3/-1/day-of, including
+        the deferred Day-3 checklist-conditional skip (both branches)
+  - [ ] G3 — Full offline/installed PWA re-check as a final gate
+  - [ ] G4 — Flag/plan around GitHub's 60-day scheduled-workflow auto-disable
