@@ -17,6 +17,16 @@ on:
         required: false
         type: boolean
         default: false
+      dry_run:
+        description: "Run the REAL reminder/condition logic (respects simulate_date below) but never actually sends a push and never writes subscriptions.json/sent-log.json — just logs what it would have done. Safe to run repeatedly with any simulate_date."
+        required: false
+        type: boolean
+        default: false
+      simulate_date:
+        description: "Only used with dry_run: pretend 'today' is this date (YYYY-MM-DD, Europe/Amsterdam) instead of the real current date — e.g. 2026-08-09 to test the Day-3 checklist-conditional skip before that date really arrives. Ignored if dry_run is false."
+        required: false
+        type: string
+        default: ""
 
 permissions:
   contents: write
@@ -41,13 +51,16 @@ jobs:
           VAPID_PUBLIC_KEY: ${{ secrets.VAPID_PUBLIC_KEY }}
           VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
           TEST_SEND: ${{ inputs.test_send }}
+          DRY_RUN: ${{ inputs.dry_run }}
+          SIMULATE_DATE: ${{ inputs.simulate_date }}
         run: node send-reminders.js
 
-      # Skipped entirely for a test send — test mode never touches sent-log.json or
-      # subscriptions.json, so there's nothing to commit and no risk of a test run
-      # accidentally marking a real reminder (e.g. Day-7) as already sent.
+      # Skipped for a test send (which never touches these files) AND for a dry
+      # run (which deliberately never writes them either) — nothing to commit in
+      # either case, and no risk of a test/simulated run marking a real reminder
+      # (e.g. Day-7) as already sent.
       - name: Commit updated reminder state, if anything changed
-        if: ${{ inputs.test_send != true }}
+        if: ${{ inputs.test_send != true && inputs.dry_run != true }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"

@@ -85,9 +85,22 @@ async function main() {
     return testSend();
   }
 
+  // Dry-run mode (workflow_dispatch inputs `dry_run` + `simulate_date`): runs the
+  // REAL date/condition logic below, optionally pretending "today" is a different
+  // date, but never calls webpush.sendNotification and never writes subscriptions.json
+  // /sent-log.json. Exists specifically to test the Day-3 checklist-conditional skip
+  // (and the other reminders) before their real dates arrive, with zero risk of an
+  // early/premature real send or of marking a real reminder as resolved ahead of time.
+  const dryRun = process.env.DRY_RUN === "true";
+  const simulateDate = dryRun && process.env.SIMULATE_DATE ? process.env.SIMULATE_DATE : null;
+
   const subscriptions = readJson(SUBSCRIPTIONS_FILE, {});
   const sentLog = readJson(SENT_LOG_FILE, {});
-  const today = amsterdamDateString(new Date());
+  const today = simulateDate || amsterdamDateString(new Date());
+
+  if (dryRun) {
+    console.log(`[DRY RUN] today=${today}${simulateDate ? " (simulated)" : " (real)"} — no pushes will be sent, no files will be written.`);
+  }
 
   let sentCount = 0;
   let skippedComplete = 0;
@@ -102,8 +115,18 @@ async function main() {
       if (today < reminder.dateAmsterdam) continue;
 
       if (reminder.conditional && entry.checklistComplete) {
-        sentLog[endpoint][reminder.id] = true; // resolved: skip, don't send
+        if (dryRun) {
+          console.log(`[DRY RUN] would SKIP ${reminder.id} for ${endpoint.slice(0, 40)}... (checklist already complete)`);
+        } else {
+          sentLog[endpoint][reminder.id] = true; // resolved: skip, don't send
+        }
         skippedComplete++;
+        continue;
+      }
+
+      if (dryRun) {
+        console.log(`[DRY RUN] would SEND ${reminder.id} to ${endpoint.slice(0, 40)}...: "${reminder.message}"`);
+        sentCount++;
         continue;
       }
 
@@ -127,16 +150,17 @@ async function main() {
     }
   }
 
-  for (const endpoint of toRemove) {
-    delete subscriptions[endpoint];
-    delete sentLog[endpoint];
+  if (!dryRun) {
+    for (const endpoint of toRemove) {
+      delete subscriptions[endpoint];
+      delete sentLog[endpoint];
+    }
+    writeJson(SUBSCRIPTIONS_FILE, subscriptions);
+    writeJson(SENT_LOG_FILE, sentLog);
   }
 
-  writeJson(SUBSCRIPTIONS_FILE, subscriptions);
-  writeJson(SENT_LOG_FILE, sentLog);
-
   console.log(
-    `Checked ${Object.keys(subscriptions).length} subscriber(s): sent=${sentCount} skippedComplete=${skippedComplete} removedExpired=${removedExpired}`
+    `${dryRun ? "[DRY RUN] " : ""}Checked ${Object.keys(subscriptions).length} subscriber(s): sent=${sentCount} skippedComplete=${skippedComplete} removedExpired=${removedExpired}`
   );
 }
 
