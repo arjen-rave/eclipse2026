@@ -1178,3 +1178,17 @@ phone window dimensions: 812×375 confirmed Location and Countdown render side b
 side; 812×700 (taller, to see content below the fold) confirmed the Safety
 checklist renders as a full-width collapsed row beneath both, with correct nav
 bar layout underneath. Bumped `CACHE_NAME` to `eclipse2026-v26`.
+
+**On-device gotcha (not a code bug):** after deploying v26, the installed
+home-screen app still wouldn't rotate. Root cause: Android's installed-app
+wrapper (WebAPK) snapshots `manifest.json` at install time and doesn't
+necessarily re-read a changed `orientation` field on a simple reopen — the
+service worker's cache-busting (`CACHE_NAME` bump) only affects what's served
+*inside* the app, not the WebAPK shell's own copy of the manifest, which Android
+manages separately. Confirmed device auto-rotate was already enabled (ruled out
+first) and confirmed this was the installed app, not a browser tab. **Resolved**
+by the user removing the app from the home screen and reinstalling it — rotation
+now works correctly. Not logged as a recurring-pattern candidate yet (first
+occurrence), but worth remembering: any future manifest.json change that affects
+installed-app behavior (orientation, display mode, etc.) may need a reinstall to
+verify on-device, not just a reopen.
