@@ -1,10 +1,4 @@
 {
-  "https://example.com/TEST-DELETE-ME": {
-    "subscription": {
-      "endpoint": "https://example.com/TEST-DELETE-ME"
-    },
-    "checklistComplete": false
-  },
   "https://fcm.googleapis.com/fcm/send/f6jsO9rXaaY:APA91bEUhMaRhmCKwMaeD4bwO5hG-xwHLiWOSk9uyKYnf9ERZCTJsHpHUoHLq3HMQoIvtNcOQGuqCtb4cAhwR-nb4vGljzvWp7o14jWSyRWs0R2uOfXGu5rCRRVSz6aDOHu0av6E-KTY": {
     "subscription": {
       "endpoint": "https://fcm.googleapis.com/fcm/send/f6jsO9rXaaY:APA91bEUhMaRhmCKwMaeD4bwO5hG-xwHLiWOSk9uyKYnf9ERZCTJsHpHUoHLq3HMQoIvtNcOQGuqCtb4cAhwR-nb4vGljzvWp7o14jWSyRWs0R2uOfXGu5rCRRVSz6aDOHu0av6E-KTY",
