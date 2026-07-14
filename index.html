@@ -59,6 +59,11 @@
     min-height: 60vh;
   }
   .panel.active { display: block; }
+  /* Class-based (not inline-style) so a more specific display value set elsewhere
+     — e.g. the landscape grid on #cameraContent below — can still win once this
+     class is removed; an inline style would always beat any external CSS rule
+     regardless of media query. */
+  .hidden { display: none; }
   .panel h2 {
     margin-top: 0;
     font-size: 1.05rem;
@@ -540,6 +545,30 @@
   .aim-arrow.right { right: 0.6rem; top: 50%; transform: translateY(-50%); }
   .aim-arrow.up { top: 0.6rem; left: 50%; transform: translateX(-50%); }
   .aim-arrow.down { bottom: 0.6rem; left: 50%; transform: translateX(-50%); }
+
+  /* Landscape: video preview moves to one side (there's width to spare) with the
+     warning text, status, and controls stacked in a column next to it, instead of
+     everything stacked top-to-bottom. Same "video" area used on every row below
+     merges those cells into one spanning area (standard CSS grid-template-areas
+     behavior), so the preview runs the full height of the side column. */
+  @media (orientation: landscape) {
+    #cameraContent {
+      display: grid;
+      grid-template-columns: 1.2fr 1fr;
+      grid-template-areas:
+        "video warning"
+        "video status"
+        "video controls"
+        "video appstatus";
+      gap: 0.75rem;
+      align-items: start;
+    }
+    #cameraWarning { grid-area: warning; margin: 0; }
+    #cameraPreviewWrap { grid-area: video; aspect-ratio: 4 / 3; margin: 0; }
+    #cameraStatus { grid-area: status; }
+    #cameraControls { grid-area: controls; }
+    #cameraAppStatus { grid-area: appstatus; }
+  }
 </style>
 </head>
 <body>
@@ -650,8 +679,8 @@
       </div>
     </div>
 
-    <div id="cameraContent" style="display:none;">
-      <p class="checklist-warning">
+    <div id="cameraContent" class="hidden">
+      <p class="checklist-warning" id="cameraWarning">
         Never look directly at the sun, even briefly, while using this. Keep your
         eclipse glasses on at all times &mdash; only look at <strong>this screen</strong>,
         never along the same line of sight as the camera. This is a
@@ -912,8 +941,17 @@
   // notification bug, and again while debugging the GitHub-PAT approach). Whatever
   // happens during subscribe/sync should be readable directly off the screen.
   const pushSyncStatus = document.getElementById("pushSyncStatus");
+  let pushSyncStatusTimer = null;
+  // Toast-style: shows briefly, then clears itself, rather than sitting under the
+  // button permanently. Clearing any pending timer first means a newer message
+  // (e.g. "Unsubscribed ✓" right after "Unsubscribing…") always gets its own full
+  // display window instead of being wiped early by an older scheduled clear.
   function setPushSyncStatus(text) {
     pushSyncStatus.textContent = text;
+    clearTimeout(pushSyncStatusTimer);
+    if (text) {
+      pushSyncStatusTimer = setTimeout(() => { pushSyncStatus.textContent = ""; }, 5000);
+    }
   }
 
   // subscriptionJson must be plain JSON (a PushSubscription's .toJSON() result, not
@@ -1419,8 +1457,8 @@
 
   function refreshCameraTabState() {
     const loc = loadStoredLocation();
-    cameraLocationEmpty.style.display = loc ? "none" : "block";
-    cameraContent.style.display = loc ? "block" : "none";
+    cameraLocationEmpty.classList.toggle("hidden", !!loc);
+    cameraContent.classList.toggle("hidden", !loc);
     if (!loc) stopCameraStream();
   }
   document.getElementById("cameraSetLocationBtn").addEventListener("click", openLocationModal);

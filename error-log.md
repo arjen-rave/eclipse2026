@@ -1192,3 +1192,43 @@ now works correctly. Not logged as a recurring-pattern candidate yet (first
 occurrence), but worth remembering: any future manifest.json change that affects
 installed-app behavior (orientation, display mode, etc.) may need a reinstall to
 verify on-device, not just a reopen.
+
+## Milestone I2 — Camera tab landscape layout, plus a real bug caught while testing
+
+Second half of landscape mode: video preview moves to one side of the Camera tab
+(spans the full column height via repeated `grid-template-areas` naming) with the
+warning text, status line, and controls stacked in a column next to it. Preview
+`aspect-ratio` changed from the portrait `3/4` to a landscape-shaped `4/3`.
+
+**Real bug, caught before shipping:** built a throwaway test copy of `index.html`
+(copied to the job's tmp dir, never touching the tracked file) to screenshot the
+Camera tab at landscape headless-Chrome window dimensions. First screenshot showed
+no grid at all — `#cameraContent` was still in plain block flow, warning text
+running full width instead of sitting beside the video preview. Root cause:
+`refreshCameraTabState()` (the function that shows/hides `#cameraLocationEmpty`
+vs `#cameraContent` depending on whether a location is set) toggles visibility via
+`element.style.display = ...`, an **inline** style — which always wins over an
+external stylesheet rule regardless of specificity or media query. The landscape
+`@media` block's `display: grid` on `#cameraContent` could therefore never have
+taken effect at all, in any orientation, once JS set an inline `display` value.
+Not a landscape-specific bug per se — nothing before this needed `#cameraContent`'s
+`display` to be anything other than block-vs-none, so it went unnoticed until this
+change needed a non-default `display` value to win.
+
+**Fixed** by switching `cameraLocationEmpty`/`cameraContent`'s visibility toggle
+from inline `style.display` to a new `.hidden { display: none; }` utility class,
+applied/removed via `classList.toggle` instead of setting `.style.display`
+directly — this way nothing inline-overrides the media query's `display: grid`
+once the `.hidden` class is removed. Re-verified via the same headless-screenshot
+approach (had to also patch the JS toggle in the throwaway test copy to force
+`cameraContent` visible, since a fresh browser profile has no stored location):
+confirmed video preview + reticle render on the left, spanning the full height of
+that column, with warning/status/controls correctly stacked on the right.
+
+Also picked up a small item the user flagged while confirming I1 on-device:
+`#pushSyncStatus` ("Synced ✓" etc.) previously sat under the notify button
+permanently. `setPushSyncStatus()` now clears it after 5 seconds — cancels any
+previously pending clear first, so a fast-following message isn't wiped early by
+an older scheduled clear meant for the message it replaced.
+
+Bumped `CACHE_NAME` to `eclipse2026-v27`.

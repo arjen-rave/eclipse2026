@@ -225,9 +225,50 @@ window dimensions (812×375 and 812×700, to see both the two-column row and the
 full-width checklist row beneath it) — both boxes rendered side by side as
 intended, checklist rendered as a full-width collapsed row below.
 
-Not yet done: **I2 — Camera tab landscape layout** (video preview + side controls
-via `grid-template-areas`, landscape-shaped preview aspect ratio, still to be
-implemented per the plan agreed with the user).
+**I1 follow-up — real-device gotcha, resolved:** after deploying I1, the installed
+home-screen app still wouldn't rotate. Root cause: Android's installed-app wrapper
+(WebAPK) snapshots `manifest.json` at install time and doesn't necessarily re-read
+a changed `orientation` field on a simple reopen — the service worker's
+`CACHE_NAME` bump only affects what's served *inside* the app, not the WebAPK
+shell's own manifest copy, which Android manages separately. Ruled out the device's
+own auto-rotate toggle first (already on) and confirmed this was the installed
+app, not a browser tab, before concluding it was a WebAPK-staleness issue.
+**Resolved** by removing the app from the home screen and reinstalling it —
+rotation then worked correctly. Noted for future manifest.json changes that affect
+installed-app behavior: verify via reinstall, not just reopen.
+
+**I2 — Camera tab, done:** the video preview moves to one side (spanning the full
+column height via repeated `grid-template-areas` naming, standard CSS spanning
+behavior) with the warning text, status line, and controls stacked in a column
+next to it — instead of everything stacked top-to-bottom. The preview's
+`aspect-ratio` switches from the portrait `3/4` to a landscape-shaped `4/3` to
+match how the rear camera actually frames when the phone is held sideways.
+
+**Real bug caught while testing I2, before it could ship:** built a throwaway
+test copy of `index.html` (not the tracked file) to screenshot the Camera tab in
+a landscape headless-Chrome window, and found the grid layout wasn't applying at
+all — `#cameraContent` stayed in normal block flow regardless of the media query.
+Root cause: `refreshCameraTabState()` toggles that box's visibility via
+`element.style.display = ...` (an inline style), and an inline style always wins
+over any external CSS rule, media query or not — so the landscape `display: grid`
+rule could never take effect while the show/hide logic used inline styles. This
+wasn't a landscape-specific bug so much as a latent one the landscape work
+happened to expose (nothing previously needed `#cameraContent`'s `display` to be
+anything other than plain block-vs-none). Fixed by switching both
+`cameraLocationEmpty`/`cameraContent`'s visibility toggle from inline
+`style.display` to a `.hidden` utility class (`classList.toggle`), so the media
+query's `display: grid` applies normally once the class is removed. Re-verified
+with the same headless screenshot approach after the fix — video preview and
+reticle rendered on the left, warning/status/controls stacked correctly on the
+right.
+
+**Also picked up in this step (small item flagged by the user while confirming
+I1 on-device):** `#pushSyncStatus` (the "Synced ✓" / "Unsubscribed ✓" / etc. line
+under the notify button) no longer sits there permanently — `setPushSyncStatus()`
+now clears it after 5 seconds (toast-style), canceling any previous pending clear
+first so a fast-following message (e.g. "Unsubscribed ✓" right after
+"Unsubscribing…") always gets its own full display window rather than being wiped
+early.
 
 ## Milestone E — Camera "find the sun" aid
 Reuses the currently-set location (same one used for coverage %) rather than a
@@ -383,14 +424,28 @@ issues, both fixed:
   - [x] H3 — Checklist consolidated into the Overview tab as a collapsible box,
         debug controls commented out, tab renamed to "Overview," spacing tightened
         so all three boxes fit without scrolling
-- [ ] I — Landscape mode, in progress
+- [x] I — Landscape mode — complete
   - [x] I1 — `manifest.json` orientation lock changed from `"portrait"` to `"any"`;
         Overview tab: Location and Countdown boxes side by side in landscape
         (`@media (orientation: landscape)`, pure CSS, no HTML/JS changes), Checklist
         stays a full-width row underneath. Verified via a headless-Chrome screenshot
-        at landscape phone dimensions.
-  - [ ] I2 — Camera tab landscape layout (video preview + side controls via
-        `grid-template-areas`, landscape-shaped preview aspect ratio)
+        at landscape phone dimensions. Real-world gotcha found and resolved: an
+        already-installed home-screen app doesn't necessarily pick up a changed
+        manifest on a simple reopen — needed a reinstall (remove from home screen,
+        re-add) to actually rotate.
+  - [x] I2 — Camera tab landscape layout: video preview moves to one side (full
+        column height, `aspect-ratio: 4/3` instead of the portrait `3/4`), warning
+        text + status + controls stack in a column next to it, via
+        `grid-template-areas` on `#cameraContent`. Found and fixed a real bug
+        during testing (see error-log): `cameraLocationEmpty`/`cameraContent`'s
+        show/hide was driven by inline `style.display`, which always beats an
+        external CSS rule regardless of media query — meaning the landscape grid
+        could never have taken effect at all. Switched both to a `.hidden` utility
+        class (`classList.toggle`) so the media query's `display: grid` can win
+        once the class is removed. Also picked up a small item flagged by the
+        user while confirming I1 on-device: `#pushSyncStatus` ("Synced ✓" etc.)
+        now clears itself after 5s instead of sitting under the notify button
+        permanently — a toast, not a permanent status line.
 - [x] G — Full dry-run rehearsal (mandatory before 12 Aug 2026) — complete
   - [x] G1 — Simplified scope: T-30/T-5 alerts only need the location set at some
         point before the event (not a live GPS fix in the moment), since they're
