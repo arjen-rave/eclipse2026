@@ -1,10 +1,4 @@
 {
-  "https://example.com/TEST-DELETE-ME": {
-    "subscription": {
-      "endpoint": "https://example.com/TEST-DELETE-ME"
-    },
-    "checklistComplete": false
-  },
   "https://fcm.googleapis.com/fcm/send/f6jsO9rXaaY:APA91bEUhMaRhmCKwMaeD4bwO5hG-xwHLiWOSk9uyKYnf9ERZCTJsHpHUoHLq3HMQoIvtNcOQGuqCtb4cAhwR-nb4vGljzvWp7o14jWSyRWs0R2uOfXGu5rCRRVSz6aDOHu0av6E-KTY": {
     "subscription": {
       "endpoint": "https://fcm.googleapis.com/fcm/send/f6jsO9rXaaY:APA91bEUhMaRhmCKwMaeD4bwO5hG-xwHLiWOSk9uyKYnf9ERZCTJsHpHUoHLq3HMQoIvtNcOQGuqCtb4cAhwR-nb4vGljzvWp7o14jWSyRWs0R2uOfXGu5rCRRVSz6aDOHu0av6E-KTY",
@@ -46,12 +40,6 @@
         "p256dh": "BN1rYzAhRrGEZbeeQpGPGcqh4hqSj9LNH7xryY-Jrla21JEKtruKgv8zFqXrRSeG7iTwv35JJyQAeqIYHMfejdo",
         "auth": "tuiakAK7VsTqBioXp08h4A"
       }
-    },
-    "checklistComplete": false
-  },
-  "https://example.com/UNSUB-TEST": {
-    "subscription": {
-      "endpoint": "https://example.com/UNSUB-TEST"
     },
     "checklistComplete": false
   },
