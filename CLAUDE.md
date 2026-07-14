@@ -244,11 +244,13 @@ issues, both fixed:
    script's auto-cleanup path only removes a subscriber on a 404/410 from the push
    service, which `example.com` (the placeholder domain used for test entries)
    would never return. Removed both (`TEST-DELETE-ME`, `UNSUB-TEST`) from
-   `subscriptions.json` via the Worker; the matching `sent-log.json` entries still
-   need manual removal via GitHub's web editor (the Worker only touches
-   `subscriptions.json` — no channel exists to edit `sent-log.json` without a raw
-   GitHub credential, which was deliberately given up in the Cloudflare Worker
-   pivot).
+   `subscriptions.json` via the Worker; user removed the matching `sent-log.json`
+   entries directly via GitHub's web editor (the Worker only touches
+   `subscriptions.json` by design — no channel exists to edit `sent-log.json`
+   without a raw GitHub credential, which was deliberately given up in the
+   Cloudflare Worker pivot). **Both files confirmed clean** — 6 real subscribers in
+   `subscriptions.json`, 5 in `sent-log.json` (one subscriber hadn't been through a
+   real, non-dry-run reminder check yet, so has no entry there — expected).
 2. **No retry/conflict-handling on the reminder workflow's final git push.** The
    Cloudflare Worker commits to `subscriptions.json` independently (any
    subscribe/unsubscribe/checklist-change), so a Worker commit landing between this

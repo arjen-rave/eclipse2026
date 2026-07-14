@@ -1073,3 +1073,10 @@ commit):
 Everything else the QA pass checked (Milestone E's TDZ fix, the `sw.js` push/
 notificationclick listeners, `sun-position.js`'s math) came back clean — no changes
 needed there.
+
+**Resolved.** User removed the matching two entries from `sent-log.json` directly
+via GitHub's web editor. Verified via direct API fetch: `subscriptions.json` has
+exactly 6 real FCM subscribers, `sent-log.json` has 5 (the 6th subscriber simply
+hasn't been through a real, non-dry-run reminder check yet, so has no entry there
+— expected, not a discrepancy). Both files fully clean of test data, well ahead of
+the Day-7 reminder's real Aug 5 activation.
