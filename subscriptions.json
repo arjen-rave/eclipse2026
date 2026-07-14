@@ -43,12 +43,6 @@
     },
     "checklistComplete": false
   },
-  "https://example.com/UNSUB-TEST": {
-    "subscription": {
-      "endpoint": "https://example.com/UNSUB-TEST"
-    },
-    "checklistComplete": false
-  },
   "https://fcm.googleapis.com/fcm/send/cMlFtXDpuKg:APA91bEHpIpfoJ-7aqnf4iiZKqonUCnFcGgvBkybdtustlhmupu_-439CdMS4YeKKq-smxGDLxF4I5kBNismhqvFUeA6CFBoWi8udZYfHbYqOJATTvLWo1DiOIW7Ke_67zIrllI2bKPP": {
     "subscription": {
       "endpoint": "https://fcm.googleapis.com/fcm/send/cMlFtXDpuKg:APA91bEHpIpfoJ-7aqnf4iiZKqonUCnFcGgvBkybdtustlhmupu_-439CdMS4YeKKq-smxGDLxF4I5kBNismhqvFUeA6CFBoWi8udZYfHbYqOJATTvLWo1DiOIW7Ke_67zIrllI2bKPP",
