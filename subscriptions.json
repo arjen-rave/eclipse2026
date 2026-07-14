@@ -64,5 +64,16 @@
       }
     },
     "checklistComplete": false
+  },
+  "https://fcm.googleapis.com/fcm/send/cVT2Nix9MnU:APA91bFUAvuMQW-SQ6TrMFwkVfNlpSlbcaX4cSvbE2u1ilAXNR6a7qu8BJm6TzOS23wc61HkFxdEhG1TBtlghDV0sGheXLFUl3DsgM7yf5mDeYvURZggtxuQLazKxU98O7_b6i3OpFFc": {
+    "subscription": {
+      "endpoint": "https://fcm.googleapis.com/fcm/send/cVT2Nix9MnU:APA91bFUAvuMQW-SQ6TrMFwkVfNlpSlbcaX4cSvbE2u1ilAXNR6a7qu8BJm6TzOS23wc61HkFxdEhG1TBtlghDV0sGheXLFUl3DsgM7yf5mDeYvURZggtxuQLazKxU98O7_b6i3OpFFc",
+      "expirationTime": null,
+      "keys": {
+        "p256dh": "BOxDZz_uBpeurkMCOS7CWwoUGmC-wetSMdBUlJ9HnvC1lHi2NcvkWhshEicoQUjs9widINB2PmgVbvE9TW1oh4k",
+        "auth": "2qtxQQJXAiSX_XB7g_fDbA"
+      }
+    },
+    "checklistComplete": false
   }
 }
