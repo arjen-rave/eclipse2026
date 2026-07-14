@@ -311,4 +311,13 @@ pattern as the Countdown box) until one exists.
         path, with zero real side effects (confirmed `sent-log.json` unchanged
         after the run).
   - [ ] G3 — Full offline/installed PWA re-check as a final gate
-  - [ ] G4 — Flag/plan around GitHub's 60-day scheduled-workflow auto-disable
+  - [x] G4 — Confirmed GitHub's actual policy: scheduled workflows auto-disable
+        after 60 *consecutive days with no commits* (not just any activity). Real
+        risk for this event is low: Aug 12 is under 30 days out (well inside the
+        60-day window from recent commits), and the app itself commits
+        automatically via subscription re-sync whenever anyone opens it with an
+        existing subscription — so normal usage during the Day-7/-3/-1 reminder
+        window likely keeps the clock reset on its own. User chose to skip adding
+        a dedicated monthly keepalive workflow given this short timeline, rather
+        than build unneeded infrastructure — flagged here as a known, accepted,
+        low-probability risk rather than mitigated with extra code.

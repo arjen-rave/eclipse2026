@@ -959,3 +959,26 @@ This closes the Day-3 checklist-conditional-skip gap flagged back in F5b as
 deliberately deferred rather than risked at the time. Two cosmetic leftovers still
 sitting in `subscriptions.json` (`TEST-DELETE-ME`, `UNSUB-TEST`) — not blocking,
 user can clean up via GitHub's web editor whenever convenient.
+
+User asked to confirm no push notification should have arrived on their phone from
+this dry run — correctly confirmed: `dry_run=true` never calls
+`webpush.sendNotification()` at all, every "would SEND"/"would SKIP" line is purely
+a `console.log`, unlike `test_send=true` (used in Milestone F) which does send a
+real push. No notification arriving was the expected, correct outcome.
+
+## Milestone G4 — GitHub's 60-day scheduled-workflow auto-disable risk
+
+Researched the actual policy rather than assume the worst case: GitHub disables
+scheduled workflows in a public repo after 60 *consecutive days with no commits*
+specifically (not any repository activity — issues/PRs/tags don't count, only
+commits reset the clock). Assessed the real risk for this specific event rather
+than reflexively adding a mitigation: Aug 12 is under 30 days from today, well
+inside the 60-day window from the commits already being made this session, and
+the app itself commits automatically (subscription re-sync via the Cloudflare
+Worker) whenever anyone opens it with an existing push subscription — meaning
+ordinary use during the Day-7/-3/-1 reminder window likely keeps the clock reset
+without any dedicated mechanism. Presented this assessment plus the standard
+mitigation (a monthly no-op "keepalive" commit workflow) to the user rather than
+unilaterally deciding either way; user chose to skip adding it, given the short
+timeline makes the natural commit cadence sufficient. Flagged as a known, assessed,
+low-probability risk in CLAUDE.md rather than either ignored or over-engineered.
