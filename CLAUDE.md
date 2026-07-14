@@ -287,7 +287,7 @@ pattern as the Countdown box) until one exists.
   - [x] H1 — Coverage moved from a tab to a persistent header + location-picker modal
         (incl. box styling + heading refinements)
   - [x] H2 — Generalized Netherlands-specific copy for the wider European region
-- [ ] G — Full dry-run rehearsal (mandatory before 12 Aug 2026), in progress
+- [x] G — Full dry-run rehearsal (mandatory before 12 Aug 2026) — complete
   - [x] G1 — Simplified scope: T-30/T-5 alerts only need the location set at some
         point before the event (not a live GPS fix in the moment), since they're
         derived from whatever location is already saved. Added a location-set hint
@@ -310,7 +310,13 @@ pattern as the Countdown box) until one exists.
         now confirmed correct in both branches, using the real production code
         path, with zero real side effects (confirmed `sent-log.json` unchanged
         after the run).
-  - [ ] G3 — Full offline/installed PWA re-check as a final gate
+  - [x] G3 — Confirmed the service worker's precache list (`sw.js` `CORE_ASSETS`)
+        includes every file the app actually references (verified via direct code
+        review — `manifest.json`'s icon paths and `index.html`'s `<link>`/`<script
+        src>` tags all cross-checked against it, nothing missing). Real on-device
+        confirmation: fully closed the app, enabled airplane mode, reopened from
+        the home-screen icon — countdown, location/coverage, checklist, and camera
+        tab all loaded normally offline.
   - [x] G4 — Confirmed GitHub's actual policy: scheduled workflows auto-disable
         after 60 *consecutive days with no commits* (not just any activity). Real
         risk for this event is low: Aug 12 is under 30 days out (well inside the

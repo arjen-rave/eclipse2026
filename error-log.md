@@ -982,3 +982,30 @@ mitigation (a monthly no-op "keepalive" commit workflow) to the user rather than
 unilaterally deciding either way; user chose to skip adding it, given the short
 timeline makes the natural commit cadence sufficient. Flagged as a known, assessed,
 low-probability risk in CLAUDE.md rather than either ignored or over-engineered.
+
+## Milestone G3 — final offline/installed PWA re-check
+
+Attempted a headless-Chrome verification of the service worker's Cache Storage
+contents first (register `sw.js`, await `navigator.serviceWorker.ready`, list what
+actually landed in the cache). Hit the exact same known limitation documented
+earlier in this project during H1's unsubscribe-button testing:
+`navigator.serviceWorker.ready` hangs indefinitely in this headless environment —
+confirmed again here (registration itself resolved, but awaiting `.ready` never
+did, even at a 15-second virtual-time-budget). Recognized this as a previously-
+identified tooling limitation rather than re-investigating it a second time, and
+relied instead on direct code review: cross-checked `sw.js`'s `CORE_ASSETS`
+precache list against every file `index.html` and `manifest.json` actually
+reference (`<link>`/`<script src>` tags, manifest icon paths) — confirmed complete,
+nothing missing.
+
+Real, authoritative confirmation came from the user directly, which is the
+intended final check for this milestone anyway: fully closed the app, enabled
+airplane mode, reopened from the home-screen icon — countdown, location/coverage,
+checklist, and camera tab all loaded and displayed correctly with no network
+connection.
+
+**Milestone G (G1–G4) is now complete.** All four sub-items closed: scope
+simplified (no live-GPS test needed), the previously-deferred Day-3 checklist-
+conditional skip fully verified via safe dry-run testing (both branches), the
+60-day GitHub Actions inactivity risk assessed and consciously accepted rather
+than over-engineered, and a final real-device offline/installed check passed.
