@@ -1268,3 +1268,12 @@ scenario the collapse option exists for. Re-checked the Overview tab afterward t
 confirm the shared `main`/nav padding change didn't regress its landscape layout
 from Milestone I1 — still renders correctly. Bumped `CACHE_NAME` to
 `eclipse2026-v28`.
+
+## I2 follow-up #2 — enlarge the landscape preview ~10%
+
+User found the just-shrunk landscape preview a bit too small and asked for roughly
+a 10% increase. `#cameraPreviewWrap`'s capped `height` changed from `36vh` to
+`40vh` (a 4-point vh bump, ~11% relative increase). No errors encountered.
+Re-verified via the same headless-screenshot approach at a realistic landscape
+size (800×400, warning collapsed): preview, warning, and both buttons still all
+fit with no scrolling. Bumped `CACHE_NAME` to `eclipse2026-v29`.
