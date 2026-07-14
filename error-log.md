@@ -917,3 +917,45 @@ into the Countdown tab's Location box.
 
 No errors encountered. Verified via headless Chrome: checklist item renders with
 the updated text, no console errors. Bumped `CACHE_NAME` to `eclipse2026-v23`.
+
+## Milestone G2 — safe dry-run testing closes the deferred Day-3 conditional check
+
+Added `dry_run` + `simulate_date` workflow_dispatch inputs to
+`send-reminders.yml`/`send-reminders.js`. When `dry_run=true`, the script runs the
+real date/condition logic (optionally against a `simulate_date` override instead of
+the real current date) but never calls `webpush.sendNotification` and never writes
+`subscriptions.json`/`sent-log.json` — it only logs what it would have done. This
+was the key missing piece from Milestone F: testing Day-3's checklist-conditional
+skip specifically required pretending "today" is on/after Aug 9, which couldn't be
+done safely against the real reminder state without this mode (a real, non-dry-run
+test would have permanently marked reminders as sent in `sent-log.json` ahead of
+their actual dates).
+
+To exercise both branches of the Day-3 conditional in one pass, added a synthetic
+test subscription (`https://example.com/DRYRUN-COMPLETE-TEST`) with
+`checklistComplete: true` via the Cloudflare Worker (same pattern as all earlier
+test entries), alongside the existing real/test entries which all had
+`checklistComplete: false`. Had the user trigger `workflow_dispatch` with
+`simulate_date=2026-08-12` (deliberately the LAST reminder date, so all four —
+Day-7/-3/-1/day-of — show as simultaneously due in one run rather than needing four
+separate runs).
+
+**Result — fully confirms the previously-deferred check:** every subscriber with
+`checklistComplete: false` correctly logged "would SEND day3"; the one synthetic
+`checklistComplete: true` entry correctly logged "would SKIP day3 (checklist
+already complete)"; Day-7/-1/day-of all correctly logged "would SEND" for every
+subscriber once their respective dates were reached. Summary line: "Checked 9
+subscriber(s): sent=35 skippedComplete=1 removedExpired=0" — exactly matching
+expectations (8 subscribers × 4 reminders = 32, plus the 9th subscriber getting 3
+sends + 1 skip = 35 sends + 1 skip = 36 total evaluations).
+
+Verified the dry run's core safety promise held: fetched `sent-log.json` directly
+after the run and confirmed every entry was still `{}` (completely untouched) —
+the mechanism genuinely made zero real changes despite exercising the full real
+code path. Removed the synthetic test entry afterward via the Worker's delete
+path, confirmed it was gone.
+
+This closes the Day-3 checklist-conditional-skip gap flagged back in F5b as
+deliberately deferred rather than risked at the time. Two cosmetic leftovers still
+sitting in `subscriptions.json` (`TEST-DELETE-ME`, `UNSUB-TEST`) — not blocking,
+user can clean up via GitHub's web editor whenever convenient.

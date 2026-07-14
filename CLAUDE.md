@@ -296,7 +296,19 @@ pattern as the Countdown box) until one exists.
         location" an explicit, actionable checklist step rather than the vaguer
         "know your start time." Also fixed a stale "Coverage tab" reference left
         over from the Milestone H1 tab redesign.
-  - [ ] G2 — Safe dry-run/simulate-date testing of Day-7/-3/-1/day-of, including
-        the deferred Day-3 checklist-conditional skip (both branches)
+  - [x] G2 — Added a safe `dry_run`/`simulate_date` mode to the reminders workflow
+        (never sends a real push, never writes `subscriptions.json`/`sent-log.json`
+        — logs what it would do instead). Ran it with `simulate_date=2026-08-12`
+        (all four reminder dates "due" at once, in one pass) against the real
+        production `subscriptions.json`, with one added synthetic
+        `checklistComplete: true` test entry (removed again afterward) alongside
+        the existing real/test entries that all have `checklistComplete: false`.
+        Result: every `false` entry correctly showed "would SEND day3"; the one
+        `true` entry correctly showed "would SKIP day3 (checklist already
+        complete)"; Day-7/-1/day-of all correctly showed "would SEND" for every
+        entry. This closes the F5b-deferred gap — the Day-3 conditional logic is
+        now confirmed correct in both branches, using the real production code
+        path, with zero real side effects (confirmed `sent-log.json` unchanged
+        after the run).
   - [ ] G3 — Full offline/installed PWA re-check as a final gate
   - [ ] G4 — Flag/plan around GitHub's 60-day scheduled-workflow auto-disable
