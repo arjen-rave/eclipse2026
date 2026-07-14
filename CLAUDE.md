@@ -174,6 +174,23 @@ shown in the times list below it — simplified to a static "Counting down to th
 local eclipse maximum" — and removed the "Built in Milestone B" tag from the
 Countdown box (a Milestone-tracking leftover, no longer relevant).
 
+**H3 — done:** consolidated from 3 tabs to 2, another step toward the original
+2-tab goal. Moved the Safety checklist out of its own tab and into the
+Countdown/Overview tab as a third `.info-box`, below Location and Countdown —
+wrapped in a native `<details>` (not a custom JS toggle), collapsed by default,
+so all three boxes fit on one screen without scrolling; expanding it is a single
+tap on the "Safety checklist" heading, with a small rotating chevron indicator.
+Tightened checklist spacing (row padding, gaps, font sizes) so the expanded view
+is more compact too. Removed the (now empty) Checklist tab and its nav button.
+Renamed the tab's nav label from "Countdown" to "Overview" — the internal
+`#panel-countdown`/`#countdownBox` element IDs were deliberately left unchanged
+(lower-risk than touching every JS reference for what's purely a user-facing label
+change), and the individual "Countdown" box inside keeps its own heading, since
+that specific box is still specifically about the countdown. Commented out (not
+deleted) the debug time-jump controls, both the HTML block and its JS wiring, with
+a note on what to uncomment together to bring it back — kept in source for quick
+re-testing, per the user's explicit request not to lose it entirely.
+
 ## Milestone E — Camera "find the sun" aid
 Reuses the currently-set location (same one used for coverage %) rather than a
 separate live GPS lookup — one location source of truth, avoids requesting

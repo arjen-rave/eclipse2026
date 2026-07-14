@@ -1080,3 +1080,58 @@ exactly 6 real FCM subscribers, `sent-log.json` has 5 (the 6th subscriber simply
 hasn't been through a real, non-dry-run reminder check yet, so has no entry there
 — expected, not a discrepancy). Both files fully clean of test data, well ahead of
 the Day-7 reminder's real Aug 5 activation.
+
+## Milestone H3 — consolidate to 2 tabs, hide debug, collapsible checklist
+
+User asked for a clean-up pass: hide (comment out, don't delete) the debug
+time-jump controls; move the Safety checklist into the Countdown/Overview tab as
+its own box at the bottom, matching the Location/Countdown box style, without
+carrying over the "Built in Milestone D" tag or the `// ---- Safety checklist
+(Milestone D) ----` comment; make the checklist collapsible so all three boxes fit
+on one screen without scrolling; remove the now-empty Checklist tab; rename the
+"Countdown" tab label to "Overview."
+
+Implementation: moved the whole checklist section (warning banner, progress line,
+item list) from its own `<section class="panel" id="panel-checklist">` into
+`#panel-countdown`, as a third `.info-box` sibling after `#locationBox`/
+`#countdownBox`. Used a native `<details class="info-box collapsible-box">` rather
+than a custom JS-driven toggle — collapsed by default (`open` attribute omitted),
+with `<summary><h2>Safety checklist</h2></summary>` as the tap target (WHATWG HTML
+explicitly permits a single heading element as `<summary>`'s content, so this is
+spec-conformant, not a hack). Added a small custom chevron indicator
+(`::after` content, rotates 90° via the `[open]` selector) and hid the native
+disclosure marker (`list-style:none` + `::-webkit-details-marker` for
+cross-browser coverage), so it reads as "tap the heading to expand" rather than a
+generic browser `<details>` look. Tightened checklist row/gap/font spacing
+slightly to keep the *expanded* view compact too, not just rely on
+collapsed-by-default for the "fits on one screen" goal.
+
+Removed `<section id="panel-checklist">` and its nav button entirely. Renamed the
+first nav button's visible text from "Countdown" to "Overview" — deliberately left
+every internal ID (`panel-countdown`, `countdownBox`, etc.) untouched, since
+renaming those would mean updating dozens of JS references for a change that's
+purely a user-facing label; the individual "Countdown" box inside the Overview tab
+keeps its own "Countdown" heading, since that box is still specifically about the
+countdown itself. Fixed two now-stale references while in here: a checklist item's
+label said "(Countdown tab)" (now "(Overview tab)"), and a CSS comment describing
+"two separate boxes" (now three).
+
+Debug controls: commented out both the HTML block (`<details class="debug">...`)
+and its JS wiring (`debugJumpTo` + the four `addEventListener` calls) — not
+deleted, per the explicit request to keep them available for quick re-testing
+later, with an inline note on what to uncomment together to bring it back
+(the HTML and JS halves are independent; uncommenting only one would either leave
+dead buttons with no handlers, or throw on `document.getElementById(...).addEventListener`
+against elements that no longer exist in the DOM).
+
+No errors encountered. Verified via headless Chrome against the real page code:
+nav now has exactly 2 tabs, first one reads "Overview"; confirmed
+`document.getElementById("dbgT31")` returns `null` and `typeof debugJumpTo` is
+`"undefined"` (i.e., genuinely inert, not just visually hidden — the commenting-out
+actually worked, this wasn't just a CSS `display:none`); confirmed `#checklistBox`
+is a real `<details>` element, closed by default, and correctly toggles `open` on
+demand; confirmed all 6 checklist checkboxes still render with correct label text
+(including the updated "Overview tab" wording) and `isChecklistComplete()` still
+functions correctly after a checkbox change; confirmed the three boxes'
+DOM order inside the Overview tab is Location → Countdown → Checklist as intended.
+Bumped `CACHE_NAME` to `eclipse2026-v24`.
