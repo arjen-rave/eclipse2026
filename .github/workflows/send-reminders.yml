@@ -59,6 +59,17 @@ jobs:
       # run (which deliberately never writes them either) — nothing to commit in
       # either case, and no risk of a test/simulated run marking a real reminder
       # (e.g. Day-7) as already sent.
+      # The Cloudflare Worker (cloudflare-worker/worker.js) also writes to
+      # subscriptions.json independently, any time someone subscribes/unsubscribes
+      # or their checklist state changes — so a Worker-triggered commit can land on
+      # main between this job's checkout and its push. A plain `git pull --rebase`
+      # can genuinely conflict in that window (not just need a fast-forward), and an
+      # unhandled failure here would mean this run's sentLog updates never land —
+      # risking the same reminder(s) being sent again on the next scheduled run,
+      # which is exactly the duplicate-send problem the catch-up design exists to
+      # prevent. Retry a few times (same backoff pattern as the Worker's own
+      # GitHub-PUT retry logic); if it still fails, fail the step loudly rather
+      # than silently swallow it — a lost state-commit needs to be visible.
       - name: Commit updated reminder state, if anything changed
         if: ${{ inputs.test_send != true && inputs.dry_run != true }}
         run: |
@@ -66,5 +77,19 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add subscriptions.json sent-log.json
           git diff --staged --quiet || git commit -m "Update reminder state [skip ci]"
-          git pull --rebase origin main
-          git push origin main
+
+          for i in 1 2 3; do
+            if git pull --rebase origin main && git push origin main; then
+              echo "Pushed reminder state successfully (attempt $i)."
+              exit 0
+            fi
+            echo "Push attempt $i failed, retrying in $((i * 3))s..."
+            # A failed rebase can leave the working tree mid-rebase/conflicted —
+            # clean that up before the next attempt, or the retry would just fail
+            # again on "rebase already in progress" rather than a fresh pull.
+            git rebase --abort 2>/dev/null || true
+            sleep $((i * 3))
+          done
+
+          echo "::error::Failed to push reminder state after 3 attempts — sent-log.json update did not land. This risks a duplicate send on the next scheduled run if not resolved manually."
+          exit 1

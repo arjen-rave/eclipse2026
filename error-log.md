@@ -1009,3 +1009,67 @@ simplified (no live-GPS test needed), the previously-deferred Day-3 checklist-
 conditional skip fully verified via safe dry-run testing (both branches), the
 60-day GitHub Actions inactivity risk assessed and consciously accepted rather
 than over-engineered, and a final real-device offline/installed check passed.
+
+## Post-Milestone-G QA pass — two real fixes from an independent review
+
+An external QA pass over the live, deployed repo (reading actual files, not just
+docs) found two issues, both verified directly against the real repo before fixing.
+
+**1. Leftover test entries would have caused a recurring production error.**
+Confirmed via direct API check: `subscriptions.json` still had
+`https://example.com/TEST-DELETE-ME` and `https://example.com/UNSUB-TEST` mixed in
+with the 6 real FCM subscriptions (matching entries also present in
+`sent-log.json`). The QA finding was sharper than the "cosmetic, not blocking" note
+these had carried since Milestone F: once Day-7 goes live (2026-08-05),
+`send-reminders.js` would call `webpush.sendNotification()` against these fake
+endpoints on every run, and since `example.com` won't return the 404/410 status the
+script's auto-cleanup path checks for, they'd fail and log an error indefinitely
+instead of self-cleaning like a real expired subscription would. Removed both from
+`subscriptions.json` via the Cloudflare Worker (confirmed via API: down to exactly
+6 real entries, no test data). Matching `sent-log.json` entries still need manual
+removal — the Worker's write path only touches `subscriptions.json` by design (the
+whole point of giving up a raw GitHub PAT in the earlier architecture pivot was
+narrowing the client's/Worker's blast radius to that one file/operation), so this
+needs the user to edit `sent-log.json` directly via GitHub's web UI.
+
+**2. No conflict/retry handling on the reminder workflow's git push.** Confirmed
+the actual risk by reading `cloudflare-worker/worker.js` and
+`.github/workflows/send-reminders.yml` side by side: the Worker commits to
+`subscriptions.json` independently of the scheduled workflow (any
+subscribe/unsubscribe/checklist-change), with its own retry-on-409 logic — but the
+workflow's final `git pull --rebase && git push` had no equivalent handling. A
+Worker-triggered commit landing in that window could make the plain rebase+push
+fail outright, losing that run's `sent-log.json` update and risking a duplicate
+send on the next scheduled run — directly undercutting the catch-up design's
+"never send twice" goal.
+
+Fixed with a 3-attempt retry loop (same backoff shape as the Worker's own retry
+logic: 2s/4s-style increasing delays), with `git rebase --abort` between attempts
+(a failed rebase leaves the tree mid-conflict; without cleaning that up, the next
+retry would just fail immediately on "rebase already in progress" rather than
+attempting a fresh pull) and a loud `::error::` + `exit 1` on final failure, per
+the explicit instruction not to silently swallow a failed state-commit.
+
+**Validated with a real local git sandbox, not just a syntax/YAML check** (bare
+repo + two clones simulating the workflow's checkout and a concurrent Worker
+commit):
+- First attempt used single-line minified JSON for the test files and produced a
+  spurious conflict even for non-overlapping key edits — caught this as a mistake
+  in the *test setup*, not the real logic: both the Worker and the script actually
+  write pretty-printed, one-key-per-line JSON (`JSON.stringify(obj, null, 2)`), so
+  the test wasn't representative. Redid it with matching formatting.
+- Realistic scenario (workflow removes one subscriber; Worker concurrently edits a
+  *different* subscriber): rebased and pushed cleanly on the **first** attempt —
+  with real one-key-per-line formatting, non-overlapping edits land on different
+  lines and don't conflict at the git level at all. Confirmed the merged result
+  correctly reflected both changes.
+- Genuine-conflict scenario (both writers edit the *same* subscriber's entry):
+  confirmed the retry loop correctly fails all 3 attempts (retrying can't fix a
+  real content conflict), and — critically — confirmed the working tree was left
+  completely clean afterward (no `.git/rebase-merge` marker, empty `git status`),
+  meaning the `rebase --abort` cleanup works correctly and the real workflow would
+  surface this as a failed run rather than hanging or leaving corrupted local state.
+
+Everything else the QA pass checked (Milestone E's TDZ fix, the `sw.js` push/
+notificationclick listeners, `sun-position.js`'s math) came back clean — no changes
+needed there.

@@ -235,6 +235,42 @@ pattern as the Countdown box) until one exists.
   exact scenario that would have broken. Fixed by moving the auto-load trigger to
   the very end of the script, after all section-level `const`s are declared.
 
+## Post-Milestone-G QA pass fixes (external review of the live repo)
+An independent QA pass over the deployed repo (post-E/G, mid-H) found two real
+issues, both fixed:
+
+1. **Leftover test entries in `subscriptions.json`/`sent-log.json`** would have
+   caused a recurring, non-self-healing error once real reminders went live: the
+   script's auto-cleanup path only removes a subscriber on a 404/410 from the push
+   service, which `example.com` (the placeholder domain used for test entries)
+   would never return. Removed both (`TEST-DELETE-ME`, `UNSUB-TEST`) from
+   `subscriptions.json` via the Worker; the matching `sent-log.json` entries still
+   need manual removal via GitHub's web editor (the Worker only touches
+   `subscriptions.json` — no channel exists to edit `sent-log.json` without a raw
+   GitHub credential, which was deliberately given up in the Cloudflare Worker
+   pivot).
+2. **No retry/conflict-handling on the reminder workflow's final git push.** The
+   Cloudflare Worker commits to `subscriptions.json` independently (any
+   subscribe/unsubscribe/checklist-change), so a Worker commit landing between this
+   job's checkout and its push could make a plain `git pull --rebase && git push`
+   fail outright — silently losing that run's `sent-log.json` update and risking a
+   duplicate send next time. Added a 3-attempt retry loop (matching the Worker's
+   own GitHub-PUT backoff pattern), with `git rebase --abort` between attempts to
+   avoid a stuck mid-rebase state, and a loud `::error::` + `exit 1` on final
+   failure rather than swallowing it.
+
+   Validated with a real local git sandbox (bare repo + two clones), not just a
+   syntax check: simulated a realistic concurrent write (this workflow removing
+   one subscriber while the Worker touches a *different* subscriber's entry at the
+   same time) — confirmed this rebases and pushes cleanly on the first attempt,
+   since both writers use the same pretty-printed, one-key-per-line JSON format
+   (`JSON.stringify(obj, null, 2)`), so non-overlapping edits land on different
+   lines and never conflict at the git level. Separately simulated a genuine
+   same-key conflict (both writers editing the *same* subscriber) — confirmed the
+   retry loop correctly fails after 3 attempts, leaves no stuck rebase behind
+   (working tree clean, no `.git/rebase-merge` marker left over), and would
+   surface as a failed workflow run rather than disappearing silently.
+
 ## Milestone status
 - [x] A — PWA skeleton & install
 - [x] B — Countdown + in-app local alerts
