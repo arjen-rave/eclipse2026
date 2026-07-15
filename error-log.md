@@ -1587,3 +1587,44 @@ the real device). Also confirmed via a direct headless screenshot at 900×412
 that the preview now renders as a compact, portrait-sized box with the warning
 fully visible right next to it, not requiring a scroll at that width. Bumped
 `CACHE_NAME` and `#versionTag` to `eclipse2026-v37`.
+
+## v37 still wrong: insert should rotate with the phone, not stay a fixed size
+
+User rejected v37 too, and the miscommunication took several exchanges to
+resolve — worth recording precisely, since it's the actual spec now. What the
+user meant by "same size" (confirmed as correct back at v37) was never "same
+absolute width/height regardless of rotation" — it was "the same rectangle,
+glued to the phone, rotating rigidly with it": portrait's width becomes
+landscape's *height*, and portrait's height becomes landscape's *width*. v37
+kept the same absolute W and H in both orientations (same narrow/tall shape
+always), which is a different thing and not what was asked, even though an
+earlier round of clarifying questions had (wrongly) confirmed it. Lesson: when
+a user confirms a paraphrased spec, the paraphrase can still be wrong — worth
+double-checking with a concrete example (numbers or a sketch) for anything
+with more than one plausible reading, rather than trusting a single-word
+"correct" against a summary.
+
+**Fix**: flipped `aspect-ratio` from `3/4` to `4/3` for the landscape preview,
+and set `height` (not `width`) to `calc(min(100vw, 100vh) - 4.5rem)` — the
+same reference length used before — with `width: auto` so the flipped ratio
+computes width from that height. Since portrait's own width equals this same
+reference length (via its unmodified `width:100%` rule), and landscape's
+height is now set to it directly, landscape's height numerically equals
+portrait's width; landscape's width (derived from that height via the 4:3
+ratio) numerically equals portrait's height. Same physical rectangle,
+reoriented — not resized.
+
+**Verification, again working around this environment's window-size quirk**:
+comparing preview dimensions at two separately-guessed portrait/landscape
+window sizes (412×900 vs 900×412) showed no obvious swap relationship at
+first — but that's because this sandbox's `--window-size` doesn't reliably
+produce genuinely axis-swapped `clientWidth`/`clientHeight` pairs (already
+documented earlier this session). Found a landscape window size
+(`1000×576`) whose reported `clientHeight` (478) happened to exactly match
+the earlier portrait test's `clientWidth` (478) — i.e., one that *does*
+represent a true rotation of the same device — and re-measured: portrait was
+404×538.7 (width×height), landscape came out 541.3×406. Landscape's height
+(406) matches portrait's width (404); landscape's width (541.3) matches
+portrait's height (538.7) — both within ~2-3px, consistent with normal
+`aspect-ratio` rounding. Confirms the swap is working as intended. Bumped
+`CACHE_NAME` and `#versionTag` to `eclipse2026-v38`.

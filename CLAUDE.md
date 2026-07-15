@@ -657,6 +657,25 @@ issues, both fixed:
         landed very close to the formula's prediction. Real Android Chrome
         uses overlay scrollbars (no reserved layout space), so this specific
         discrepancy is expected to not occur on the actual device.
+  - [x] J follow-up #8 — user rejected #7 too: "same size," when confirmed
+        earlier, actually meant "same rectangle, rotating rigidly with the
+        phone" (portrait's width becomes landscape's height, and vice versa)
+        — not "identical absolute width/height regardless of orientation,"
+        which is what #7 built. Took several exchanges to pin down; noted for
+        the future — a user confirming a paraphrased spec doesn't mean the
+        paraphrase was right, worth double-checking ambiguous specs with a
+        concrete example rather than trusting one-word confirmation. Fixed by
+        flipping the landscape preview's `aspect-ratio` to `4/3` (from `3/4`)
+        and setting `height` (not `width`) to the same reference length
+        (`calc(min(100vw, 100vh) - 4.5rem)`) used in #7, with `width: auto` so
+        the flipped ratio derives width from it — landscape's height now
+        numerically equals portrait's width, and landscape's width equals
+        portrait's height. Verified by hunting down a landscape window size
+        whose reported `clientHeight` happened to exactly match a portrait
+        test's `clientWidth` (i.e., one that represents a genuine device
+        rotation, working around this environment's `--window-size`
+        unreliability) and confirming the swap holds within ~2-3px (normal
+        `aspect-ratio` rounding).
 - [x] G — Full dry-run rehearsal (mandatory before 12 Aug 2026) — complete
   - [x] G1 — Simplified scope: T-30/T-5 alerts only need the location set at some
         point before the event (not a live GPS fix in the moment), since they're

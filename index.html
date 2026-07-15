@@ -660,27 +660,27 @@
       align-items: start;
       overflow-x: auto;
     }
-    /* width:100% (portrait's rule) resolves against whichever viewport axis is
-       currently wide — which is exactly the bug: rotating to landscape makes
-       the *container* wider, so "100% of it" is a bigger number than portrait
-       ever produced, even though it's nominally "the same rule." A phone's
-       two physical dimensions don't change when you rotate it — only which
-       one is currently "width" vs "height" swaps — so min(100vw, 100vh) is
-       the one viewport-relative quantity that stays constant across rotation,
-       and is what portrait's own width effectively equals (in portrait, vw
-       *is* the smaller dimension). Subtracting 4.5rem replicates the exact
-       horizontal padding chain portrait's plain width:100% already gets for
-       free from its ancestors (main's 1rem each side + .panel's 1.25rem each
-       side = 4.5rem total) — needed explicitly here since min(vw,vh) is an
-       absolute length, not a percentage, so it doesn't auto-subtract ancestor
-       padding the way width:100% does. This is also why the Camera panel's
-       own padding is deliberately NOT tightened for landscape elsewhere in
-       this file — it has to stay identical to portrait's for this figure to
-       stay correct. */
+    /* The insert should rotate rigidly with the phone — like a sticker glued
+       to the back of it — not stay a fixed absolute width/height regardless
+       of orientation. So portrait's width becomes landscape's height, and
+       portrait's height becomes landscape's width: same physical rectangle,
+       reoriented, not resized. aspect-ratio is flipped to 4/3 (was 3/4) to
+       match, and height (not width) is set to the same reference length
+       portrait's own width effectively equals — min(100vw, 100vh) is the one
+       viewport-relative quantity that stays constant across rotation (a
+       phone's two physical dimensions don't change when you rotate it, only
+       which one is currently "width" vs "height" does), minus 4.5rem to
+       replicate the horizontal padding portrait's plain width:100% already
+       gets for free from its ancestors (main's 1rem each side + .panel's
+       1.25rem each side). Setting height (with width:auto) lets the flipped
+       aspect-ratio compute the now-larger width from it, which numerically
+       equals portrait's own height — completing the swap. */
     #cameraPreviewWrap {
       grid-area: video;
       margin: 0;
-      width: calc(min(100vw, 100vh) - 4.5rem);
+      aspect-ratio: 4 / 3;
+      height: calc(min(100vw, 100vh) - 4.5rem);
+      width: auto;
     }
     /* max-width caps the *open* (expanded) reading width so the paragraph
        wraps into a normal multi-line block instead of one very long line —
@@ -875,7 +875,7 @@
      literal match for whichever version the service worker is currently
      serving — a plain hardcoded string, not derived from CACHE_NAME at
      runtime, since sw.js and index.html don't share a JS scope to read it from. -->
-<div id="versionTag">v37</div>
+<div id="versionTag">v38</div>
 
 <script src="besselian-2026-08-12.js"></script>
 <script src="sun-position.js"></script>
