@@ -639,50 +639,47 @@
     /* :not(.hidden) — an ID selector's specificity would otherwise always beat
        .hidden's display:none regardless of source order, so this rule could
        show #cameraContent as a grid even while it's supposed to be hidden
-       (no location set). Found via testing; see error-log. */
+       (no location set). Found via testing; see error-log.
+       Column 1 is 100% — the preview sits in a column exactly as wide as the
+       whole content area, same as its plain width:100% rule in portrait (no
+       shrinking). Column 2 (max-content) sizes to whatever width the warning
+       currently needs — small when collapsed (summary only), wider when open
+       — and since 100% + anything > the visible width, the row overflows and
+       overflow-x:auto turns that into a horizontal scroll rather than
+       squeezing the preview to make room. status/controls/appstatus use "."
+       in column 2 so they stay confined to column 1 (the always-visible part)
+       and never need scrolling to reach. */
     #cameraContent:not(.hidden) {
       display: grid;
-      grid-template-columns: auto 1fr;
+      grid-template-columns: 100% max-content;
       grid-template-areas:
         "video warning"
-        "video status"
-        "video controls"
-        "video appstatus";
+        "status ."
+        "controls ."
+        "appstatus .";
       gap: 0.75rem;
       align-items: start;
+      overflow-x: auto;
     }
-    /* Rotated to vertical text, with a capped height (rather than the usual
-       auto height) — that's what makes opening/closing it grow or shrink its
-       WIDTH ("sideways") instead of its height, since a fixed-height vertical
-       text column wraps into more columns as content grows, rather than one
-       column growing taller. margin-block-start (a logical property) is used
-       instead of a plain top margin so the gap between the summary and the
-       paragraph lands on the correct physical side automatically under
-       vertical-rl, instead of hardcoding an assumption about which side that is. */
+    #cameraPreviewWrap {
+      grid-area: video;
+      margin: 0;
+      /* Deliberately no aspect-ratio/height/width override here — reuses the
+         exact same base rule as portrait (aspect-ratio:3/4; width:100%), so
+         the preview is exactly the same size/shape as in portrait, not the
+         shrunk-to-fit-height version from the previous approach. */
+    }
+    /* max-width caps the *open* (expanded) reading width so the paragraph
+       wraps into a normal multi-line block instead of one very long line —
+       collapsed, the details element is already narrower than this cap
+       (summary text only), so the cap has no effect there. No writing-mode —
+       plain horizontal text, same alignment as portrait, just scrolled to
+       instead of scrolled past. */
     #cameraWarning {
       grid-area: warning;
       margin: 0;
-      writing-mode: vertical-rl;
-      text-orientation: mixed;
-      height: 4.5rem;
-      width: auto;
-      max-width: 55vw;
-      overflow-x: auto;
-      justify-self: start;
+      max-width: 260px;
     }
-    #cameraWarning p {
-      margin: 0;
-      margin-block-start: 0.5rem;
-    }
-    /* Height-first, not width-first: capped to a viewport-height fraction so the
-       preview (and the reticle/arrows aiming aid inside it) always fits on screen
-       without scrolling, however wide the landscape viewport is. Width is auto so
-       aspect-ratio derives it from that capped height, instead of the previous
-       behavior of taking a fixed share of the row's width and letting height
-       (and therefore total page height) grow however tall that implied. The
-       column track is "auto" (not a fraction) to match, so it shrinks to the
-       preview's actual (height-driven) width rather than stretching it back out. */
-    #cameraPreviewWrap { grid-area: video; aspect-ratio: 4 / 3; height: 40vh; width: auto; margin: 0; }
     #cameraStatus { grid-area: status; }
     #cameraControls { grid-area: controls; }
     #cameraAppStatus { grid-area: appstatus; }
@@ -865,7 +862,7 @@
      literal match for whichever version the service worker is currently
      serving — a plain hardcoded string, not derived from CACHE_NAME at
      runtime, since sw.js and index.html don't share a JS scope to read it from. -->
-<div id="versionTag">v35</div>
+<div id="versionTag">v36</div>
 
 <script src="besselian-2026-08-12.js"></script>
 <script src="sun-position.js"></script>

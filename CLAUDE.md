@@ -610,13 +610,28 @@ issues, both fixed:
         actually loaded going forward.
   - [x] J follow-up #5 — layout tweak once the button was confirmed working:
         in portrait, swapped the DOM order so the preview comes before the
-        warning (was: warning, then preview); in landscape, rotated the
-        warning to vertical text (`writing-mode: vertical-rl`) with a fixed
-        height so it collapses/expands sideways (width) instead of up/down
-        (height), leaving the tuned video/grid sizing untouched. Novel CSS for
-        this project (rotated multi-column vertical text) — flagged as needing
-        on-device visual confirmation, same as other things this session that
-        couldn't be fully validated without real hardware.
+        warning (was: warning, then preview).
+  - [x] J follow-up #6 — user rejected the initial landscape attempt (rotated
+        vertical text) after seeing it live: wanted the preview at *exactly*
+        portrait size (not shrunk at all), warning reachable by scrolling
+        right instead, collapsible to a narrow column, and normal (not
+        rotated) horizontal text. Redone: `#cameraContent`'s landscape grid is
+        now `grid-template-columns: 100% max-content` — column 1 (100%) holds
+        the preview using its plain unmodified portrait sizing rule (no
+        landscape override left at all), column 2 sizes to whatever the
+        warning needs and overflows past the container since column 1 alone
+        already fills it, turned into a horizontal scroll via
+        `overflow-x: auto` rather than squeezing the preview.
+        `status`/`controls`/`appstatus` stay confined to column 1 (reachable
+        without scrolling) via `.` placeholders in the grid areas. Warning
+        itself: removed `writing-mode` entirely, replaced the fixed-height
+        vertical-text trick with a plain `max-width: 260px` (caps wrapping
+        when open; has no effect when collapsed, since the summary alone is
+        already narrower). Verified via `getBoundingClientRect`/`scrollWidth`
+        checks (not just screenshots): preview measured 693.8×925px (exact
+        3:4) regardless of warning state, confirming it truly never shrinks;
+        `scrollWidth` exceeds `clientWidth` in both states, confirming the
+        scroll-to-reach-warning behavior is real, not just visually implied.
 - [x] G — Full dry-run rehearsal (mandatory before 12 Aug 2026) — complete
   - [x] G1 — Simplified scope: T-30/T-5 alerts only need the location set at some
         point before the event (not a live GPS fix in the moment), since they're

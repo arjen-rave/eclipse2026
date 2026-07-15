@@ -1491,3 +1491,46 @@ warning text. This is a genuinely novel piece of CSS for this project (rotated
 multi-column vertical text) that I can't fully validate without seeing it on
 the actual device — flagged as such. Bumped `CACHE_NAME` and `#versionTag` to
 `eclipse2026-v35`.
+
+## Landscape camera tab, redone: no shrinking, horizontal scroll instead of rotation
+
+User rejected the vertical-text approach after seeing it live: wanted the
+preview to be exactly the same size as portrait (not shrunk at all), the
+warning to sit to the right and be reached by scrolling, collapsible to a
+single (narrow) column, and — the key correction — normal horizontal text, not
+rotated. Replaced the whole landscape approach:
+
+- `#cameraContent`'s landscape grid: `grid-template-columns: 100% max-content`.
+  Column 1 (100%) is exactly as wide as the whole content area — the preview
+  sitting in it, still using its plain unmodified `width:100%; aspect-ratio:
+  3/4` rule (no landscape override left at all), ends up exactly the size it
+  would be in portrait. Column 2 sizes to whatever the warning currently needs
+  (small collapsed, wider open) — since column 1 alone already accounts for
+  100% of the available width, any nonzero column 2 pushes the grid's total
+  content width past the container, and `overflow-x: auto` turns that into a
+  horizontal scroll instead of squeezing the preview to make room.
+- `status`/`controls`/`appstatus` use `.` in column 2 of `grid-template-areas`,
+  confining them to column 1 — they stay reachable without scrolling; only the
+  warning is off in scroll territory.
+- `#cameraWarning`: removed `writing-mode`/`text-orientation` entirely (back to
+  normal horizontal text, "just normal alignment" as asked) and replaced the
+  fixed-height sideways-text trick with a plain `max-width: 260px` — this caps
+  the *open* reading width so the paragraph wraps into an ordinary multi-line
+  block instead of one long line; collapsed, the `<details>` is already
+  narrower than 260px (summary only) so the cap has no effect there, and it's
+  the same "narrow when closed, wider when open" outcome as before, just via
+  ordinary content-driven sizing instead of vertical-text-column wrapping.
+
+Verified via headless Chrome using `getBoundingClientRect`/`scrollWidth` checks
+(not just screenshots, given this environment's earlier-discovered
+screenshot-vs-layout mismatch): confirmed the preview is 693.8×925px — an
+exact 3:4 ratio — regardless of the warning's open/closed state (proving it
+truly never shrinks); confirmed `scrollWidth` (966px open / 805px collapsed)
+exceeds `clientWidth` (694px) in both states, i.e., a horizontal scroll is
+genuinely available/needed to reach the warning, more so when open than
+collapsed. Also took a screenshot after programmatically scrolling
+`#cameraContent` fully right, to see the actual rendered warning text — normal
+horizontal alignment, fully legible, matching portrait's own warning styling.
+Re-confirmed portrait renders unaffected (no landscape-only rule touches
+portrait's own layout). Bumped `CACHE_NAME` and `#versionTag` to
+`eclipse2026-v36`.
