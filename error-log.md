@@ -1412,3 +1412,36 @@ than something in this app's own code. Verified via a headless DOM/error check
 wired) — the actual capture behavior itself was already confirmed working
 on-device back in Milestone E, so wasn't re-tested live here. Bumped
 `CACHE_NAME` to `eclipse2026-v33`.
+
+## Milestone J follow-up #4 — v33 confirmed still not working; added a version tag
+
+User confirmed on-device, after a full close-and-reopen (ruling out stale
+service-worker/in-memory-page state): both "Open camera app" buttons (main
+controls and the max-screen overlay) do nothing at all — same result as the
+intent-link attempts. Checked the live deployed `index.html`/`sw.js` directly
+(via `curl`) to rule out a deploy mismatch: both matched the intended source
+exactly, `CACHE_NAME` was `eclipse2026-v33` as expected, and the fullscreen
+overlay's computed style confirmed `display:none` by default (so it isn't
+silently covering the page and swallowing clicks meant for the main button).
+No further hypothesis pursued yet — root cause not identified. **Deliberately
+did not attempt another speculative code change here**, per the user's explicit
+instruction not to keep changing things without being asked; asked instead
+whether the "Open camera app" button behaves any differently in a plain Chrome
+tab versus the installed home-screen app, to check whether this is the same
+class of WebAPK-specific restriction already found twice this session
+(orientation lock requiring reinstall; intent:// links not resolving) or
+something else.
+
+Also added, per explicit request: a small always-visible version tag
+(`#versionTag`, bottom-right, muted grey, `pointer-events:none` so it can never
+block a real tap, `z-index:3000` so it stays visible even over the max-screen
+overlay) showing a hardcoded version string (`v34`) — deliberately not derived
+from `sw.js`'s `CACHE_NAME` at runtime, since `index.html` and `sw.js` don't
+share a JS scope; instead both are bumped together by hand on every deploy from
+now on, and this needs to be remembered as an extra step alongside the existing
+`CACHE_NAME` bump. Positioned above the nav bar (not at the very bottom edge)
+so it doesn't visually sit on top of the Camera tab's own icon/label. Confirmed
+via computed `getBoundingClientRect` that it renders inside the real viewport
+— a direct screenshot crop looked empty at first, which turned out to be the
+same screenshot/window-size capture-vs-layout mismatch already noted earlier in
+Milestone J's max-screen work, not a real positioning bug.

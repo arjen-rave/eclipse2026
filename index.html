@@ -94,6 +94,18 @@
     border-top: 1px solid var(--border);
     padding-bottom: env(safe-area-inset-bottom);
   }
+  /* Sits just above the nav bar (not overlapping its own bottom edge), so it
+     doesn't visually collide with the Camera tab's icon/label underneath it. */
+  #versionTag {
+    position: fixed;
+    right: 0.4rem;
+    bottom: 4rem;
+    font-size: 0.6rem;
+    color: var(--muted);
+    opacity: 0.7;
+    z-index: 3000;
+    pointer-events: none;
+  }
   nav button {
     flex: 1;
     background: none;
@@ -823,6 +835,11 @@
     <span class="icon">&#128247;</span>Camera
   </button>
 </nav>
+<!-- Bump this alongside sw.js's CACHE_NAME on every deploy, so it's always a
+     literal match for whichever version the service worker is currently
+     serving — a plain hardcoded string, not derived from CACHE_NAME at
+     runtime, since sw.js and index.html don't share a JS scope to read it from. -->
+<div id="versionTag">v34</div>
 
 <script src="besselian-2026-08-12.js"></script>
 <script src="sun-position.js"></script>

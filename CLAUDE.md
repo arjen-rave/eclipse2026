@@ -598,6 +598,19 @@ issues, both fixed:
         to the exact working-but-limited behavior from before Milestone J
         started; the "full native app" experience remains an open want, not
         achievable via any web-exposed mechanism found so far.
+  - [ ] J follow-up #4 — user confirmed on-device, after a full close/reopen,
+        that the reverted file-input mechanism *also* does nothing — same
+        symptom as the failed intent-link attempts. Live deploy checked
+        directly (curl) and confirmed to match intended source, so this isn't
+        a deploy/cache mismatch. Root cause not yet identified — deliberately
+        stopped guessing further per the user's explicit instruction, and asked
+        instead whether the button behaves differently in a plain Chrome tab vs.
+        the installed home-screen app (to check whether this is the same class
+        of WebAPK-only restriction found twice already, or something else).
+        Still open. Added an always-visible version tag (bottom-right, muted,
+        hardcoded string bumped by hand alongside `CACHE_NAME` each deploy —
+        `index.html`/`sw.js` don't share a JS scope to derive it automatically)
+        so the user can confirm which build is actually loaded going forward.
 - [x] G — Full dry-run rehearsal (mandatory before 12 Aug 2026) — complete
   - [x] G1 — Simplified scope: T-30/T-5 alerts only need the location set at some
         point before the event (not a live GPS fix in the moment), since they're
