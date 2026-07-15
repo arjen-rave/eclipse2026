@@ -632,6 +632,31 @@ issues, both fixed:
         3:4) regardless of warning state, confirming it truly never shrinks;
         `scrollWidth` exceeds `clientWidth` in both states, confirming the
         scroll-to-reach-warning behavior is real, not just visually implied.
+  - [x] J follow-up #7 — **real bug**: user caught, immediately after J
+        follow-up #6 shipped, that the preview was visibly *bigger* in
+        landscape than portrait — "same CSS rule" (`width:100%` in both) isn't
+        "same rendered size," since a landscape viewport's width is that
+        device's longer physical dimension. Before changing anything, asked
+        the user to confirm the exact spec in plain language, per their
+        explicit request, then fixed it: preview's landscape width is now
+        `calc(min(100vw, 100vh) - 4.5rem)` — `min(vw,vh)` is the one
+        viewport-relative quantity that's invariant across rotation (a
+        device's two physical dimensions don't change when you rotate it,
+        only which one is currently "width" vs "height" does), and `4.5rem`
+        replicates the horizontal padding portrait's own `width:100%` already
+        gets for free from `main`+`.panel`'s ancestor padding (which doesn't
+        happen automatically for an absolute length like `min(vw,vh)`, unlike
+        a percentage). Removed the landscape-only Camera-panel padding
+        tightening (from the max-screen-overlay work) since it's no longer
+        relevant and would have thrown off this calculation by not matching
+        portrait's padding. Verification chased down a real false alarm along
+        the way: comparing portrait vs. landscape test renders first showed a
+        mismatch, traced to this desktop test environment's `main` container
+        reserving classic (non-overlay) scrollbar width once its content grew
+        tall — confirmed by disabling that scroll and re-measuring, which
+        landed very close to the formula's prediction. Real Android Chrome
+        uses overlay scrollbars (no reserved layout space), so this specific
+        discrepancy is expected to not occur on the actual device.
 - [x] G — Full dry-run rehearsal (mandatory before 12 Aug 2026) — complete
   - [x] G1 — Simplified scope: T-30/T-5 alerts only need the location set at some
         point before the event (not a live GPS fix in the moment), since they're

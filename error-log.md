@@ -1534,3 +1534,56 @@ horizontal alignment, fully legible, matching portrait's own warning styling.
 Re-confirmed portrait renders unaffected (no landscape-only rule touches
 portrait's own layout). Bumped `CACHE_NAME` and `#versionTag` to
 `eclipse2026-v36`.
+
+## Real bug: landscape preview was bigger than portrait despite "same rule"
+
+User caught this immediately after v36 shipped: the preview was visibly larger
+in landscape than portrait. Before making any change, stopped and asked the
+user to confirm the exact spec in plain language (per their explicit request),
+then investigated.
+
+**Root cause**: v36 used the *same* `width: 100%` rule in both orientations,
+reasoning "same CSS = same result." That's wrong — rotating a phone doesn't
+change its two physical dimensions, only which one is currently "width" and
+which is "height." A landscape viewport's width is that device's *longer*
+dimension, so "100% of the container" resolves to a bigger number in landscape
+than the same rule ever produced in portrait, even though it's textually the
+same rule.
+
+**Fix**: `min(100vw, 100vh)` is the one viewport-relative quantity that stays
+constant across rotation (in portrait, `vw` already *is* the smaller
+dimension, so `min(vw,vh)` there just equals plain `vw`; in landscape, `vh`
+becomes the smaller one, and rotating a real device makes that value equal to
+what portrait's own `vw` was). Set `#cameraPreviewWrap`'s landscape width to
+`calc(min(100vw, 100vh) - 4.5rem)` — the `4.5rem` replicates the exact
+horizontal padding portrait's plain `width:100%` already gets for free from
+its ancestors (main's `1rem` each side + `.panel`'s `1.25rem` each side),
+needed explicitly here since `min(vw,vh)` is an absolute length, not a
+percentage, so it doesn't auto-subtract ancestor padding the way `width:100%`
+does. Removed the landscape-only `#panel-camera` padding tightening (added
+back in the max-screen-overlay work) entirely, since it's no longer relevant
+(that shrink-to-fit-height goal is gone) and, more importantly, having it
+differ from portrait's `.panel` padding would have thrown off this exact
+calculation. Also changed the grid's `grid-template-columns` from
+`100% max-content` to `max-content max-content`, since column 1 is no longer
+meant to consume the whole width — it now sizes to the preview's own
+(smaller, explicitly calculated) width, with the warning column sitting
+immediately next to it rather than far off to the right.
+
+**Verification, including chasing down a confusing false alarm**: compared the
+preview's rendered width at simulated portrait (412×900 request) vs landscape
+(900×412 request) — got 389px vs 242px, an apparent mismatch. Traced this by
+comparing `getBoundingClientRect()` (which includes reserved scrollbar width)
+against `.clientWidth` (which excludes it) on `main`: found a 15px gap,
+confirming Windows desktop Chrome was reserving classic (non-overlay)
+scrollbar width because `main`'s tall content triggered `overflow-y:auto` —
+an artifact specific to this desktop testing environment. Forcibly disabled
+`main`'s scroll in a throwaway test copy and re-measured: portrait's width
+came out to 404px, closely matching what the landscape formula's math
+predicts, confirming the CSS technique itself is sound — the mismatch was a
+testing-environment artifact (Android Chrome uses overlay scrollbars that
+don't reserve layout space, so this specific discrepancy shouldn't occur on
+the real device). Also confirmed via a direct headless screenshot at 900×412
+that the preview now renders as a compact, portrait-sized box with the warning
+fully visible right next to it, not requiring a scroll at that width. Bumped
+`CACHE_NAME` and `#versionTag` to `eclipse2026-v37`.

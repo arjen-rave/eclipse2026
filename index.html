@@ -431,10 +431,12 @@
     }
     /* Height is scarce in landscape (short viewport) — claw back a bit of the
        bottom nav-clearance padding (still comfortably above the nav's actual
-       ~55-65px height) and the panel's own padding, mainly for the Camera tab's
-       benefit (see the height-capped preview below). */
+       ~55-65px height). Camera panel's own padding is deliberately NOT
+       tightened here (unlike an earlier version) — it needs to stay identical
+       to portrait's plain .panel padding, since the preview's landscape width
+       calc below assumes that exact figure to land on the same pixel size as
+       portrait. */
     main { padding-bottom: 4.5rem; }
-    #panel-camera { padding: 0.9rem 1.1rem; }
   }
   .tab-muted {
     text-align: left;
@@ -640,18 +642,15 @@
        .hidden's display:none regardless of source order, so this rule could
        show #cameraContent as a grid even while it's supposed to be hidden
        (no location set). Found via testing; see error-log.
-       Column 1 is 100% — the preview sits in a column exactly as wide as the
-       whole content area, same as its plain width:100% rule in portrait (no
-       shrinking). Column 2 (max-content) sizes to whatever width the warning
-       currently needs — small when collapsed (summary only), wider when open
-       — and since 100% + anything > the visible width, the row overflows and
-       overflow-x:auto turns that into a horizontal scroll rather than
-       squeezing the preview to make room. status/controls/appstatus use "."
-       in column 2 so they stay confined to column 1 (the always-visible part)
-       and never need scrolling to reach. */
+       Both columns are max-content — column 1 sizes to the preview's own
+       (explicitly calculated, see below) width, column 2 to whatever the
+       warning currently needs. status/controls/appstatus use "." in column 2
+       so they stay confined to column 1 and reachable without scrolling;
+       overflow-x:auto is a safety net in case the two columns' combined width
+       ever exceeds the viewport (e.g. warning open on a narrow phone). */
     #cameraContent:not(.hidden) {
       display: grid;
-      grid-template-columns: 100% max-content;
+      grid-template-columns: max-content max-content;
       grid-template-areas:
         "video warning"
         "status ."
@@ -661,13 +660,27 @@
       align-items: start;
       overflow-x: auto;
     }
+    /* width:100% (portrait's rule) resolves against whichever viewport axis is
+       currently wide — which is exactly the bug: rotating to landscape makes
+       the *container* wider, so "100% of it" is a bigger number than portrait
+       ever produced, even though it's nominally "the same rule." A phone's
+       two physical dimensions don't change when you rotate it — only which
+       one is currently "width" vs "height" swaps — so min(100vw, 100vh) is
+       the one viewport-relative quantity that stays constant across rotation,
+       and is what portrait's own width effectively equals (in portrait, vw
+       *is* the smaller dimension). Subtracting 4.5rem replicates the exact
+       horizontal padding chain portrait's plain width:100% already gets for
+       free from its ancestors (main's 1rem each side + .panel's 1.25rem each
+       side = 4.5rem total) — needed explicitly here since min(vw,vh) is an
+       absolute length, not a percentage, so it doesn't auto-subtract ancestor
+       padding the way width:100% does. This is also why the Camera panel's
+       own padding is deliberately NOT tightened for landscape elsewhere in
+       this file — it has to stay identical to portrait's for this figure to
+       stay correct. */
     #cameraPreviewWrap {
       grid-area: video;
       margin: 0;
-      /* Deliberately no aspect-ratio/height/width override here — reuses the
-         exact same base rule as portrait (aspect-ratio:3/4; width:100%), so
-         the preview is exactly the same size/shape as in portrait, not the
-         shrunk-to-fit-height version from the previous approach. */
+      width: calc(min(100vw, 100vh) - 4.5rem);
     }
     /* max-width caps the *open* (expanded) reading width so the paragraph
        wraps into a normal multi-line block instead of one very long line —
@@ -862,7 +875,7 @@
      literal match for whichever version the service worker is currently
      serving — a plain hardcoded string, not derived from CACHE_NAME at
      runtime, since sw.js and index.html don't share a JS scope to read it from. -->
-<div id="versionTag">v36</div>
+<div id="versionTag">v37</div>
 
 <script src="besselian-2026-08-12.js"></script>
 <script src="sun-position.js"></script>
