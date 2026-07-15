@@ -1445,3 +1445,49 @@ via computed `getBoundingClientRect` that it renders inside the real viewport
 — a direct screenshot crop looked empty at first, which turned out to be the
 same screenshot/window-size capture-vs-layout mismatch already noted earlier in
 Milestone J's max-screen work, not a real positioning bug.
+
+## Camera tab: swap portrait order, sideways-collapsing vertical warning in landscape
+
+Once the camera-app button was confirmed working (root cause of the earlier
+failure never fully identified — resolved itself or was environment-specific;
+not pursued further since it's working now), user asked for one more layout
+tweak: in portrait, put the warning below the preview instead of above it; in
+landscape, don't change any of the tuned sizing (video height, grid columns,
+padding), but rotate the warning's text to match the screen's orientation and
+make it collapse sideways (narrower) rather than upward (shorter) when closed.
+
+**Portrait swap:** moved the `<details id="cameraWarning">` block to come right
+after `#cameraPreviewWrap` in the HTML instead of before it. This has zero
+effect on the landscape layout, since that's driven entirely by
+`grid-template-areas` (each element is explicitly assigned to a named area
+regardless of source order) — only affects portrait's plain block-flow order.
+
+**Landscape vertical warning:** added `writing-mode: vertical-rl` +
+`text-orientation: mixed` to `#cameraWarning` (inherited by its `summary`/`p`
+children automatically, since `writing-mode` is an inherited property — no need
+to repeat it on each). The key trick for "collapse sideways, not up": gave the
+box a fixed `height: 4.5rem` instead of the previous auto height. In vertical
+writing mode, a fixed height caps how much text fits in one vertical "column"
+before wrapping into an additional column *to the side* — so revealing more
+text (opening the details) grows the box's WIDTH, not its height, exactly
+inverting the normal (horizontal) collapse direction. Added `max-width: 55vw`
++ `overflow-x: auto` as a safety net, since the full warning paragraph is long
+enough that translated into narrow vertical columns it could plausibly grow
+very wide — this caps it and makes it scroll internally rather than risk
+breaking the surrounding grid layout if it doesn't fit. Used the logical
+property `margin-block-start` (rather than a plain physical top margin) for
+the gap between the summary and paragraph, so it lands on the correct physical
+side automatically under vertical-rl instead of hardcoding an assumption.
+
+Iterated once based on a headless screenshot: the initial `height: 3rem` cut
+the word "Warning" off mid-word in the collapsed state; bumped to `4.5rem` and
+confirmed the full word plus the chevron marker now fit. Verified via headless
+screenshots at 800×400: collapsed state shows a narrow vertical "Warning" tab
+next to an unchanged-size video preview; expanded state shows the full warning
+text flowing in readable vertical columns growing to the left, chevron
+correctly rotated for the open state, video still unchanged; portrait
+screenshot confirms the preview now appears before the (normal, horizontal)
+warning text. This is a genuinely novel piece of CSS for this project (rotated
+multi-column vertical text) that I can't fully validate without seeing it on
+the actual device — flagged as such. Bumped `CACHE_NAME` and `#versionTag` to
+`eclipse2026-v35`.

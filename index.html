@@ -651,7 +651,29 @@
       gap: 0.75rem;
       align-items: start;
     }
-    #cameraWarning { grid-area: warning; margin: 0; }
+    /* Rotated to vertical text, with a capped height (rather than the usual
+       auto height) — that's what makes opening/closing it grow or shrink its
+       WIDTH ("sideways") instead of its height, since a fixed-height vertical
+       text column wraps into more columns as content grows, rather than one
+       column growing taller. margin-block-start (a logical property) is used
+       instead of a plain top margin so the gap between the summary and the
+       paragraph lands on the correct physical side automatically under
+       vertical-rl, instead of hardcoding an assumption about which side that is. */
+    #cameraWarning {
+      grid-area: warning;
+      margin: 0;
+      writing-mode: vertical-rl;
+      text-orientation: mixed;
+      height: 4.5rem;
+      width: auto;
+      max-width: 55vw;
+      overflow-x: auto;
+      justify-self: start;
+    }
+    #cameraWarning p {
+      margin: 0;
+      margin-block-start: 0.5rem;
+    }
     /* Height-first, not width-first: capped to a viewport-height fraction so the
        preview (and the reticle/arrows aiming aid inside it) always fits on screen
        without scrolling, however wide the landscape viewport is. Width is auto so
@@ -788,6 +810,22 @@
     </div>
 
     <div id="cameraContent" class="hidden">
+      <!-- Portrait: preview comes before the warning (swapped from the original
+           order) — landscape's grid-template-areas assigns each element to a
+           named area regardless of source order, so this reorder doesn't
+           affect the landscape layout at all. -->
+      <div id="cameraPreviewWrap">
+        <video id="cameraVideo" autoplay playsinline muted></video>
+        <div id="aimOverlay">
+          <div id="aimReticle"></div>
+          <div class="aim-arrow left" style="display:none;">&larr;</div>
+          <div class="aim-arrow right" style="display:none;">&rarr;</div>
+          <div class="aim-arrow up" style="display:none;">&uarr;</div>
+          <div class="aim-arrow down" style="display:none;">&darr;</div>
+        </div>
+        <button id="maxScreenBtn" style="display:none;">&#10530; Max screen</button>
+      </div>
+
       <details class="checklist-warning collapsible-box" id="cameraWarning" open>
         <summary>Warning</summary>
         <p>
@@ -802,18 +840,6 @@
           least keep every control you're used to.
         </p>
       </details>
-
-      <div id="cameraPreviewWrap">
-        <video id="cameraVideo" autoplay playsinline muted></video>
-        <div id="aimOverlay">
-          <div id="aimReticle"></div>
-          <div class="aim-arrow left" style="display:none;">&larr;</div>
-          <div class="aim-arrow right" style="display:none;">&rarr;</div>
-          <div class="aim-arrow up" style="display:none;">&uarr;</div>
-          <div class="aim-arrow down" style="display:none;">&darr;</div>
-        </div>
-        <button id="maxScreenBtn" style="display:none;">&#10530; Max screen</button>
-      </div>
       <p class="tab-muted" id="cameraStatus"></p>
 
       <div class="info-box-buttons" id="cameraControls">
@@ -839,7 +865,7 @@
      literal match for whichever version the service worker is currently
      serving — a plain hardcoded string, not derived from CACHE_NAME at
      runtime, since sw.js and index.html don't share a JS scope to read it from. -->
-<div id="versionTag">v34</div>
+<div id="versionTag">v35</div>
 
 <script src="besselian-2026-08-12.js"></script>
 <script src="sun-position.js"></script>
