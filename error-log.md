@@ -1335,3 +1335,40 @@ screenshot pixel-cropping when verifying exact element positioning in this
 environment; screenshots are still fine for overall layout/visibility checks,
 which aren't sensitive to this discrepancy. Bumped `CACHE_NAME` to
 `eclipse2026-v30`.
+
+## Milestone J follow-up — button color regression, intent link not opening
+
+On-device testing of v30 found two problems.
+
+**Real bug: "Open camera app" wasn't yellow anymore.** Root cause: when this
+button moved from `#openCameraAppLabel` (an ID) to `.open-camera-app-btn` (a
+class, so it could be shared between the main controls and the fullscreen
+overlay), its effective specificity dropped below `.info-box-buttons a`'s —
+that selector is a class *and* a type selector (`a`), specificity (0,1,1), which
+beats a single class alone (0,1,0) regardless of which rule appears later in the
+file. An ID never has this problem (it outranks any class/type combination
+automatically), which is exactly why the original never needed to worry about
+this. Fixed by nesting the class under its container instead:
+`.info-box-buttons .open-camera-app-btn` (two classes, (0,2,0), which does beat
+(0,1,1)). Added a matching `#fullscreenCloseBtn` rule (ID, no specificity issue)
+so both max-screen buttons are accent-yellow as requested. Verified via a
+computed-style check (`getComputedStyle(...).backgroundColor`) confirming both
+now resolve to `rgb(255, 196, 87)` (`--accent`), not `--bg`.
+
+**"Open camera app" not opening the camera app on-device.** Likely cause: the
+`intent://#Intent;...;end` URI had an *empty* authority (nothing between `://`
+and the `#Intent;` fragment) — every real, documented-working intent-URI example
+found during research includes a non-empty host/path segment there (e.g.
+`intent://scan/#Intent;...`), suggesting Chrome may reject or silently ignore
+the empty-authority form. Added a placeholder path segment:
+`intent://open/#Intent;action=android.media.action.STILL_IMAGE_CAMERA;end` — the
+literal "open/" text is never used for anything (the `action=` parameter alone
+drives which app/activity actually handles it), it only exists to make the URI
+syntactically well-formed. **Still unverified** — this is a best-guess fix for a
+problem only reproducible on a real device, which isn't available in this dev
+environment. If this attempt still doesn't work on-device, the next hypothesis
+is that the installed PWA's WebAPK wrapper blocks/ignores non-http(s) scheme
+navigation entirely (a platform-level restriction, not a syntax fix) — in that
+case the fallback is reverting to the previously-confirmed-working file-input
+`capture` mechanism from Milestone E, accepting its single-shot-UI limitation.
+Bumped `CACHE_NAME` to `eclipse2026-v31`.

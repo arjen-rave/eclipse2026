@@ -570,6 +570,20 @@ issues, both fixed:
         actually be hidden by the shared `.hidden` class, since an ID selector's
         specificity always beats a class selector's regardless of source order.
         Fixed both via `:not(.hidden)` compound selectors.
+  - [x] J follow-up — real on-device testing of v30 found two problems: (1)
+        "Open camera app" had lost its yellow accent styling — moving it from
+        an ID to a shared class (`.open-camera-app-btn`) dropped its specificity
+        below the generic `.info-box-buttons a` rule; fixed by nesting the class
+        under its container (`.info-box-buttons .open-camera-app-btn`, two
+        classes beats one class + one type selector) and giving
+        `#fullscreenCloseBtn` the same accent styling, per the user's request
+        that both max-screen buttons be yellow. (2) the intent link wasn't
+        actually opening the camera app — likely cause: an empty authority
+        (`intent://#Intent;...`) where every documented-working example has a
+        non-empty path segment; added one (`intent://open/#Intent;...`). This
+        second fix is a best guess, not yet confirmed on-device — flagged as
+        such, with a fallback plan (revert to the file-input `capture`
+        mechanism) if it still doesn't work.
 - [x] G — Full dry-run rehearsal (mandatory before 12 Aug 2026) — complete
   - [x] G1 — Simplified scope: T-30/T-5 alerts only need the location set at some
         point before the event (not a live GPS fix in the moment), since they're
