@@ -1372,3 +1372,15 @@ navigation entirely (a platform-level restriction, not a syntax fix) — in that
 case the fallback is reverting to the previously-confirmed-working file-input
 `capture` mechanism from Milestone E, accepting its single-shot-UI limitation.
 Bumped `CACHE_NAME` to `eclipse2026-v31`.
+
+## Milestone J follow-up #2 — v31 confirmed: still not launching
+
+User confirmed on-device: adding a path segment didn't fix it either. Per the
+plan already agreed with the user (try one more quick variant before reverting),
+tried the shorter canonical form without the `//` authority separator at all —
+`intent:#Intent;action=android.media.action.STILL_IMAGE_CAMERA;end` instead of
+`intent://open/#Intent;...`. Both forms appear in different real-world references,
+so this is a second reasonable guess, not a confirmed root-cause fix. If this
+also fails on-device, the agreed next step is reverting to the file-input
+`capture` mechanism (Milestone E) rather than continuing to guess at intent-URI
+syntax variants blind. Bumped `CACHE_NAME` to `eclipse2026-v32`.
