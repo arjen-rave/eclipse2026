@@ -303,6 +303,77 @@ and a deliberately extreme one (800×360 — fits with the warning collapsed, st
 slightly short with it left open, which is expected and is exactly what the
 collapse option is for).
 
+## Milestone J — Camera aiming improvements: max-screen overlay, real native camera app
+
+Two more requests after landscape mode: (1) a way to view the aiming preview at
+full screen size, since the in-tab box is still cramped for actually lining up a
+shot; (2) the "Open camera app" button was launching a stripped-down single-shot
+capture UI instead of the phone's real Camera app (no mode switching, no video
+toggle, forced confirm-per-shot) — user wanted the literal full app experience.
+
+**Open camera app — replaced the mechanism entirely.** The previous
+`<input type="file" accept="image/*" capture="environment">` approach (Milestone
+E) is a web-standard *single-result capture* contract: the OS treats it as "give
+me back exactly one photo," which is precisely why it can only ever show a
+minimal capture UI and must return to the page after one shot — that's not a
+particular camera app being stripped down, it's inherent to what that HTML
+mechanism asks the OS to do, no matter which app answers it. Replaced with a plain
+link to an Android intent that just *launches* the camera app in the foreground,
+the same way a home-screen shortcut does, with no result expected back:
+`intent://#Intent;action=android.media.action.STILL_IMAGE_CAMERA;end`. This opens
+the actual full native Camera app (all shooting modes, in-app swipe to Video,
+continuous shooting, no confirm-and-return step) exactly as requested — the
+trade-off is the user now switches back to the browser manually (recents/back)
+rather than a photo ever returning to the web page, which is fine since this app
+never used the returned photo anyway (Milestone E already made photo capture
+entirely the native app's job). `intent://` URL navigation is a Chrome-for-Android-
+specific feature — this app already deliberately targets exactly that platform, so
+no fallback path was built for other browsers. **Not verifiable in this dev
+environment** (no real Android device or Chrome-for-Android intent resolution
+available here) — flagged for on-device confirmation, same as the compass/
+orientation approximations from Milestone E.
+
+**Max-screen aiming overlay.** New button (bottom-right corner of the preview,
+shown only once the camera stream is actually running) opens a body-level fixed
+overlay covering the entire viewport, nav bar included. Rather than requesting a
+second `getUserMedia` stream, the *same* live `<video>` element and its aim
+overlay (reticle + arrows) are reparented (`appendChild`) into the fullscreen
+container and back again on close — moving a media element within the same
+document doesn't interrupt its playback, so the aiming aid keeps working
+uninterrupted at both sizes. The overlay includes its own "Close" and "Open
+camera app" buttons (the latter using the same intent link as above). Also wired
+into the existing `stopCameraStream()` cleanup path, so navigating away from the
+Camera tab (which already stops the camera) closes the overlay too if it happened
+to be open.
+
+**Real bug caught while testing, twice — same root cause both times.** Testing
+the overlay's hidden-by-default state surfaced that `#cameraFullscreenOverlay`
+never actually hid: its own `display: flex` rule (an ID selector) has higher CSS
+specificity than the shared `.hidden { display: none }` utility class (a class
+selector) — ID always beats class, regardless of which rule comes later in the
+file. That prompted a check of the other place `.hidden` is depended on for
+something with its own ID-scoped `display` rule: the Camera tab's landscape grid
+(`#cameraContent { display: grid }`, from Milestone I2) had exactly the same
+latent flaw — in landscape, with no location set, `#cameraContent` would have
+incorrectly rendered as a visible grid instead of staying hidden, undetected
+until now because every prior landscape test forced the element visible to check
+the grid layout itself, never exercising the "should be hidden" state. Fixed both
+by changing the ID rule to a compound `#id:not(.hidden)` selector — for any given
+element, only one of `.hidden` or `:not(.hidden)` can ever match at a time, so
+there's no specificity contest at all, unlike trying to out-rank `.hidden` with a
+plain ID rule. Verified via explicit `getBoundingClientRect`/`getComputedStyle`
+checks scripted into a throwaway test copy (simulated a full open→close cycle:
+confirmed the overlay starts `display:none`, becomes `display:flex` with the
+video reparented into `fullscreenVideoSlot` after a simulated click, then reverts
+fully after a simulated close-button click) — chosen over screenshots for this
+check after discovering this sandbox's headless Chrome doesn't render at the
+exact `--window-size` requested (a `412×900` request laid out at `478×802`
+internally, then the screenshot capture clipped to `412×900` pixels rather than
+scaling), which made pixel-position screenshot comparisons unreliable for exact
+positioning checks specifically; screenshots remained fine for verifying overall
+layout/visibility elsewhere in this session since only exact-edge positioning is
+sensitive to that discrepancy.
+
 ## Milestone E — Camera "find the sun" aid
 Reuses the currently-set location (same one used for coverage %) rather than a
 separate live GPS lookup — one location source of truth, avoids requesting
@@ -484,6 +555,21 @@ issues, both fixed:
         height capped (`36vh`, width auto via `aspect-ratio`) instead of being
         driven by a fixed share of the row's width, so it fits on screen without
         scrolling while aiming
+        (later bumped to `40vh`, ~10% bigger, per user feedback)
+- [x] J — Camera aiming improvements — complete, see "Milestone J" above
+  - [x] "Open camera app" now launches the actual native Camera app via an
+        Android intent (`action=android.media.action.STILL_IMAGE_CAMERA`) instead
+        of the old single-shot file-input capture UI — full modes, video toggle,
+        continuous shooting, no forced confirm-per-shot. Not verifiable in this
+        dev environment (no real Android device); flagged for on-device check.
+  - [x] New "max screen" button opens a fullscreen aiming overlay (reparents the
+        live video + aim overlay, doesn't restart the camera), with its own
+        Close/Open-camera-app buttons. Found and fixed a real bug during testing:
+        two ID-scoped `display` rules (`#cameraFullscreenOverlay`, and — caught
+        retroactively — Milestone I2's landscape `#cameraContent`) could never
+        actually be hidden by the shared `.hidden` class, since an ID selector's
+        specificity always beats a class selector's regardless of source order.
+        Fixed both via `:not(.hidden)` compound selectors.
 - [x] G — Full dry-run rehearsal (mandatory before 12 Aug 2026) — complete
   - [x] G1 — Simplified scope: T-30/T-5 alerts only need the location set at some
         point before the event (not a live GPS fix in the moment), since they're

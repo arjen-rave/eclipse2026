@@ -1277,3 +1277,61 @@ a 10% increase. `#cameraPreviewWrap`'s capped `height` changed from `36vh` to
 Re-verified via the same headless-screenshot approach at a realistic landscape
 size (800×400, warning collapsed): preview, warning, and both buttons still all
 fit with no scrolling. Bumped `CACHE_NAME` to `eclipse2026-v29`.
+
+## Milestone J — max-screen aiming overlay, real native camera app launch
+
+Two requests: (1) a fullscreen "max screen" view of the aiming preview, with its
+own Close and Open-camera-app buttons; (2) fix "Open camera app" opening a
+stripped-down capture UI instead of the phone's actual full Camera app (all
+shooting modes, video toggle, no forced confirm-per-shot).
+
+**Open camera app:** replaced `<input type="file" accept="image/*"
+capture="environment">` (a single-result capture contract — that's *why* it could
+only ever show a minimal UI and had to return after one shot, regardless of which
+app answered it) with a plain link to
+`intent://#Intent;action=android.media.action.STILL_IMAGE_CAMERA;end` — an Android
+intent that just launches the Camera app in the foreground (same as a home-screen
+shortcut), with no result expected back. Removed the now-pointless
+`openCameraAppInput` `change` listener (there's no file to receive anymore) and
+reworded `#cameraAppStatus` from a dynamic "Photo saved" message (which required
+that returned-file event) to a static explanation of the new behavior. **Not
+testable in this dev environment** — no real Android device or Chrome-for-Android
+intent resolution available here; this needs on-device confirmation.
+
+**Max-screen overlay:** added `#maxScreenBtn` (bottom-right of the preview, shown
+only once the camera stream is running) and a body-level
+`#cameraFullscreenOverlay` (own Close + Open-camera-app buttons). Opening it
+reparents the *existing* `<video>` and its aim overlay into the fullscreen
+container via `appendChild` — no second `getUserMedia` call — and reparents them
+back on close; moving a live media element within the same document doesn't
+interrupt playback. Wired into `stopCameraStream()` so leaving the Camera tab
+also closes the overlay if it was left open.
+
+**Real bug, caught twice, same root cause:** a headless test checking the overlay
+was hidden by default found it wasn't — `#cameraFullscreenOverlay`'s own
+`display: flex` rule (ID selector) has higher specificity than the shared
+`.hidden { display: none }` utility class (class selector), so `.hidden` could
+never actually win regardless of source order. That prompted checking whether
+the *other* place introduced an ID-scoped `display` rule had the same flaw:
+Milestone I2's landscape `#cameraContent { display: grid }` did too — meaning
+that, in landscape, with no location set, the Camera tab would have incorrectly
+rendered as a visible grid instead of staying hidden. This had shipped in v27-v29
+undetected, because every landscape test so far deliberately forced the element
+visible to check the grid layout itself, never exercising the "should be hidden"
+path. Fixed both by changing the ID rule to a compound `#id:not(.hidden)`
+selector — since `.hidden` and `:not(.hidden)` can never both match the same
+element at once, there's no specificity contest to lose in the first place.
+
+Verified via a throwaway test copy scripted to check `getBoundingClientRect`/
+`getComputedStyle`/`classList` directly (simulated a click on `#maxScreenBtn` then
+`#fullscreenCloseBtn` and inspected state at each step) rather than screenshots
+for this specific check — while building it, discovered this sandbox's headless
+Chrome doesn't render at the exact `--window-size` requested (`412×900` requested,
+laid out at `478×802` internally, then the screenshot capture clipped to
+`412×900` pixels rather than scaling to match), which makes pixel-position
+screenshot comparisons unreliable for exact-edge positioning specifically. Noting
+this for future sessions: prefer scripted rect/computed-style checks over
+screenshot pixel-cropping when verifying exact element positioning in this
+environment; screenshots are still fine for overall layout/visibility checks,
+which aren't sensitive to this discrepancy. Bumped `CACHE_NAME` to
+`eclipse2026-v30`.

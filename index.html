@@ -458,7 +458,7 @@
     display: inline-block;
     cursor: pointer;
   }
-  #openCameraAppLabel {
+  .open-camera-app-btn {
     background: var(--accent);
     color: var(--bg);
     border-color: var(--accent);
@@ -557,6 +557,55 @@
   .aim-arrow.right { right: 0.6rem; top: 50%; transform: translateY(-50%); }
   .aim-arrow.up { top: 0.6rem; left: 50%; transform: translateX(-50%); }
   .aim-arrow.down { bottom: 0.6rem; left: 50%; transform: translateX(-50%); }
+  #maxScreenBtn {
+    position: absolute;
+    right: 0.6rem;
+    bottom: 0.6rem;
+    background: rgba(0, 0, 0, 0.55);
+    color: var(--text);
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    border-radius: 999px;
+    padding: 0.35rem 0.75rem;
+    font-size: 0.75rem;
+    cursor: pointer;
+  }
+  /* Reparented video/aim-overlay need their new parent to actually have a size
+     (video's own width/height:100% is relative to it) and to be a positioned
+     ancestor (the aim overlay's inset:0 needs something to cover). */
+  #cameraFullscreenOverlay {
+    position: fixed;
+    inset: 0;
+    background: #000;
+    z-index: 2000;
+    flex-direction: column;
+  }
+  /* :not(.hidden) rather than a plain #cameraFullscreenOverlay { display: flex }
+     — an ID selector's specificity would otherwise always beat .hidden's
+     display:none regardless of source order, so .hidden could never actually
+     hide this element (same class of bug as the earlier inline-style/media-query
+     one, but ID-vs-class this time instead of inline-vs-external). */
+  #cameraFullscreenOverlay:not(.hidden) {
+    display: flex;
+  }
+  #fullscreenVideoSlot {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+  }
+  #fullscreenVideoSlot video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  #fullscreenControls {
+    display: flex;
+    justify-content: center;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    padding-bottom: calc(0.75rem + env(safe-area-inset-bottom));
+    background: rgba(0, 0, 0, 0.7);
+  }
 
   /* Landscape: video preview moves to one side (there's width to spare) with the
      warning text, status, and controls stacked in a column next to it, instead of
@@ -564,7 +613,11 @@
      merges those cells into one spanning area (standard CSS grid-template-areas
      behavior), so the preview runs the full height of the side column. */
   @media (orientation: landscape) {
-    #cameraContent {
+    /* :not(.hidden) — an ID selector's specificity would otherwise always beat
+       .hidden's display:none regardless of source order, so this rule could
+       show #cameraContent as a grid even while it's supposed to be hidden
+       (no location set). Found via testing; see error-log. */
+    #cameraContent:not(.hidden) {
       display: grid;
       grid-template-columns: auto 1fr;
       grid-template-areas:
@@ -626,6 +679,18 @@
       </div>
       <p id="locationStatus" style="font-size:0.75rem; color:var(--muted); min-height:1em;"></p>
     </div>
+  </div>
+</div>
+
+<!-- Body-level (not nested in the Camera panel) so it can genuinely cover the
+     whole screen, nav bar included, regardless of main's scroll/overflow. The
+     live video + aim overlay are moved in here (reparented, not re-requested)
+     when opened, and moved back to #cameraPreviewWrap when closed. -->
+<div id="cameraFullscreenOverlay" class="hidden">
+  <div id="fullscreenVideoSlot"></div>
+  <div id="fullscreenControls" class="info-box-buttons">
+    <button id="fullscreenCloseBtn">Close</button>
+    <a class="open-camera-app-btn" href="intent://#Intent;action=android.media.action.STILL_IMAGE_CAMERA;end">Open camera app</a>
   </div>
 </div>
 
@@ -724,16 +789,20 @@
           <div class="aim-arrow up" style="display:none;">&uarr;</div>
           <div class="aim-arrow down" style="display:none;">&darr;</div>
         </div>
+        <button id="maxScreenBtn" style="display:none;">&#10530; Max screen</button>
       </div>
       <p class="tab-muted" id="cameraStatus"></p>
 
       <div class="info-box-buttons" id="cameraControls">
         <button id="startCameraBtn">Start camera</button>
         <button id="enableCompassBtn" style="display:none;">Enable compass</button>
-        <label id="openCameraAppLabel" for="openCameraAppInput">Open camera app</label>
-        <input type="file" id="openCameraAppInput" accept="image/*" capture="environment" style="display:none;" />
+        <a class="open-camera-app-btn" href="intent://#Intent;action=android.media.action.STILL_IMAGE_CAMERA;end">Open camera app</a>
       </div>
-      <p class="tab-muted" id="cameraAppStatus"></p>
+      <p class="tab-muted" id="cameraAppStatus">
+        Opens your phone's actual camera app &mdash; full controls, all shooting
+        modes, switch to video if you want &mdash; not a stripped-down version.
+        Switch back here (recent apps or back) when you're done.
+      </p>
     </div>
   </section>
 </main>
@@ -1459,17 +1528,22 @@
   // comment and the plan's "No-duplication list" for why.
   const cameraLocationEmpty = document.getElementById("cameraLocationEmpty");
   const cameraContent = document.getElementById("cameraContent");
+  const cameraPreviewWrap = document.getElementById("cameraPreviewWrap");
   const cameraVideo = document.getElementById("cameraVideo");
+  const aimOverlay = document.getElementById("aimOverlay");
   const cameraStatus = document.getElementById("cameraStatus");
   const startCameraBtn = document.getElementById("startCameraBtn");
   const enableCompassBtn = document.getElementById("enableCompassBtn");
-  const openCameraAppInput = document.getElementById("openCameraAppInput");
   const cameraAppStatus = document.getElementById("cameraAppStatus");
   const aimReticle = document.getElementById("aimReticle");
   const arrowLeft = document.querySelector(".aim-arrow.left");
   const arrowRight = document.querySelector(".aim-arrow.right");
   const arrowUp = document.querySelector(".aim-arrow.up");
   const arrowDown = document.querySelector(".aim-arrow.down");
+  const maxScreenBtn = document.getElementById("maxScreenBtn");
+  const cameraFullscreenOverlay = document.getElementById("cameraFullscreenOverlay");
+  const fullscreenVideoSlot = document.getElementById("fullscreenVideoSlot");
+  const fullscreenCloseBtn = document.getElementById("fullscreenCloseBtn");
 
   let cameraStream = null;
   let orientationEventName = null;
@@ -1606,6 +1680,7 @@
       cameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
       cameraVideo.srcObject = cameraStream;
       startCameraBtn.style.display = "none";
+      maxScreenBtn.style.display = "inline-block";
       startOrientationTracking();
       if (aimUpdateTimer) clearInterval(aimUpdateTimer);
       aimUpdateTimer = setInterval(updateAimGuidance, 500);
@@ -1617,6 +1692,7 @@
   startCameraBtn.addEventListener("click", startCamera);
 
   function stopCameraStream() {
+    closeCameraFullscreen();
     if (cameraStream) {
       cameraStream.getTracks().forEach((track) => track.stop());
       cameraStream = null;
@@ -1633,20 +1709,26 @@
     deviceAltitude = null;
     startCameraBtn.style.display = "inline-block";
     enableCompassBtn.style.display = "none";
+    maxScreenBtn.style.display = "none";
     cameraStatus.textContent = "";
   }
 
-  // Tapping this label triggers the hidden file input below, which — thanks to
-  // accept="image/*" capture="environment" — launches the phone's own native
-  // camera app on Android Chrome, with every one of its normal controls (exposure,
-  // focus, zoom, shooting modes), none of which a web page can otherwise access.
-  // This tab's job is purely aiming; the actual photo is entirely the native app's.
-  openCameraAppInput.addEventListener("change", () => {
-    if (openCameraAppInput.files && openCameraAppInput.files.length > 0) {
-      cameraAppStatus.textContent = "Photo saved — check your phone's gallery/photos app.";
-    }
-    openCameraAppInput.value = ""; // reset so selecting/capturing again re-fires 'change'
+  // Reparents the live video + aim overlay (not a second getUserMedia call —
+  // the same MediaStream keeps playing across the move) into a body-level
+  // fixed overlay that covers the whole screen, nav bar included, so aiming
+  // isn't cramped inside the tab's normal box layout. Moved back on close.
+  maxScreenBtn.addEventListener("click", () => {
+    fullscreenVideoSlot.appendChild(cameraVideo);
+    fullscreenVideoSlot.appendChild(aimOverlay);
+    cameraFullscreenOverlay.classList.remove("hidden");
   });
+  function closeCameraFullscreen() {
+    if (cameraFullscreenOverlay.classList.contains("hidden")) return;
+    cameraPreviewWrap.appendChild(cameraVideo);
+    cameraPreviewWrap.appendChild(aimOverlay);
+    cameraFullscreenOverlay.classList.add("hidden");
+  }
+  fullscreenCloseBtn.addEventListener("click", closeCameraFullscreen);
 
   refreshCameraTabState();
 
