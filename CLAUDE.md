@@ -584,6 +584,20 @@ issues, both fixed:
         second fix is a best guess, not yet confirmed on-device — flagged as
         such, with a fallback plan (revert to the file-input `capture`
         mechanism) if it still doesn't work.
+  - [x] J follow-up #2/#3 — two more intent-URI syntax variants
+        (`intent://open/#Intent;...` then `intent:#Intent;...`, no `//`) both
+        confirmed on-device to still not launch anything. Two independently
+        plausible forms both failing points to a platform-level restriction
+        (likely: the installed PWA's WebAPK wrapper blocking non-http(s)
+        navigation), not a syntax mistake — not fixable by further guessing
+        from this environment. **Reverted** "Open camera app" to Milestone E's
+        original file-input `capture` mechanism per the fallback plan already
+        agreed with the user: a single shared hidden `<input type="file"
+        capture="environment">`, with two `<label for="...">` elements (main
+        controls + max-screen overlay) both pointing at it. Net result: back
+        to the exact working-but-limited behavior from before Milestone J
+        started; the "full native app" experience remains an open want, not
+        achievable via any web-exposed mechanism found so far.
 - [x] G — Full dry-run rehearsal (mandatory before 12 Aug 2026) — complete
   - [x] G1 — Simplified scope: T-30/T-5 alerts only need the location set at some
         point before the event (not a live GPS fix in the moment), since they're

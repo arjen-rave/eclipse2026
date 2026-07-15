@@ -701,7 +701,7 @@
   <div id="fullscreenVideoSlot"></div>
   <div id="fullscreenControls" class="info-box-buttons">
     <button id="fullscreenCloseBtn">Close</button>
-    <a class="open-camera-app-btn" href="intent:#Intent;action=android.media.action.STILL_IMAGE_CAMERA;end">Open camera app</a>
+    <label class="open-camera-app-btn" for="openCameraAppInput">Open camera app</label>
   </div>
 </div>
 
@@ -807,13 +807,10 @@
       <div class="info-box-buttons" id="cameraControls">
         <button id="startCameraBtn">Start camera</button>
         <button id="enableCompassBtn" style="display:none;">Enable compass</button>
-        <a class="open-camera-app-btn" href="intent:#Intent;action=android.media.action.STILL_IMAGE_CAMERA;end">Open camera app</a>
+        <label class="open-camera-app-btn" for="openCameraAppInput">Open camera app</label>
+        <input type="file" id="openCameraAppInput" accept="image/*" capture="environment" style="display:none;" />
       </div>
-      <p class="tab-muted" id="cameraAppStatus">
-        Opens your phone's actual camera app &mdash; full controls, all shooting
-        modes, switch to video if you want &mdash; not a stripped-down version.
-        Switch back here (recent apps or back) when you're done.
-      </p>
+      <p class="tab-muted" id="cameraAppStatus"></p>
     </div>
   </section>
 </main>
@@ -1546,6 +1543,7 @@
   const startCameraBtn = document.getElementById("startCameraBtn");
   const enableCompassBtn = document.getElementById("enableCompassBtn");
   const cameraAppStatus = document.getElementById("cameraAppStatus");
+  const openCameraAppInput = document.getElementById("openCameraAppInput");
   const aimReticle = document.getElementById("aimReticle");
   const arrowLeft = document.querySelector(".aim-arrow.left");
   const arrowRight = document.querySelector(".aim-arrow.right");
@@ -1740,6 +1738,21 @@
     cameraFullscreenOverlay.classList.add("hidden");
   }
   fullscreenCloseBtn.addEventListener("click", closeCameraFullscreen);
+
+  // Reverted back to this (Milestone E's original mechanism) after an intent://
+  // link — meant to launch the actual full native camera app instead of this
+  // single-shot capture UI — failed to open anything at all on the real device,
+  // in two different syntax variants. Whatever's blocking it (most likely: an
+  // installed PWA's WebAPK wrapper restricting navigation to non-http(s)
+  // schemes) isn't fixable from here, so this known-working, if more limited,
+  // mechanism is the fallback. Both "Open camera app" labels (main controls and
+  // the max-screen overlay) point at this one shared hidden input via `for`.
+  openCameraAppInput.addEventListener("change", () => {
+    if (openCameraAppInput.files && openCameraAppInput.files.length > 0) {
+      cameraAppStatus.textContent = "Photo saved — check your phone's gallery/photos app.";
+    }
+    openCameraAppInput.value = ""; // reset so selecting/capturing again re-fires 'change'
+  });
 
   refreshCameraTabState();
 

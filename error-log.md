@@ -1384,3 +1384,31 @@ so this is a second reasonable guess, not a confirmed root-cause fix. If this
 also fails on-device, the agreed next step is reverting to the file-input
 `capture` mechanism (Milestone E) rather than continuing to guess at intent-URI
 syntax variants blind. Bumped `CACHE_NAME` to `eclipse2026-v32`.
+
+## Milestone J follow-up #3 — v32 confirmed: still not launching, reverted
+
+User confirmed on-device: the `intent:` (no `//`) form still didn't launch
+anything either. Two different syntactically-valid intent-URI forms both
+failing strongly points to a platform-level restriction (most likely: an
+installed PWA's WebAPK wrapper blocking navigation to non-http(s) schemes
+entirely) rather than a syntax mistake — not something fixable by further
+guessing at URL variants from this environment.
+
+Per the fallback already agreed with the user, reverted "Open camera app" back
+to Milestone E's original mechanism: a single hidden
+`<input type="file" id="openCameraAppInput" accept="image/*"
+capture="environment">`, triggered by a `<label for="openCameraAppInput">` —
+now two separate labels (main controls row, and the max-screen overlay) pointing
+at the *same* shared input via `for`, since a label's `for` attribute works
+regardless of the label's own position in the DOM. Restored the `change`
+listener and its "Photo saved…" status message, and removed the now-inaccurate
+"full experience" explanatory copy added when this button briefly used the
+intent-link approach. Net effect: back to the exact behavior confirmed working
+on-device before Milestone J started (single-shot capture UI, not the full
+native app) — the "full app" ask (multi-shot, mode switching, no confirm step)
+remains unresolved, blocked by what looks like a platform restriction rather
+than something in this app's own code. Verified via a headless DOM/error check
+(no JS errors; both labels and the shared input all present and correctly
+wired) — the actual capture behavior itself was already confirmed working
+on-device back in Milestone E, so wasn't re-tested live here. Bumped
+`CACHE_NAME` to `eclipse2026-v33`.
