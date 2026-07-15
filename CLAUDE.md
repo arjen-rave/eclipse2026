@@ -675,7 +675,8 @@ issues, both fixed:
         test's `clientWidth` (i.e., one that represents a genuine device
         rotation, working around this environment's `--window-size`
         unreliability) and confirming the swap holds within ~2-3px (normal
-        `aspect-ratio` rounding).
+        `aspect-ratio` rounding). **User confirmed on-device**: "not great, but
+        better and good enough" — accepted as-is, not pursued further.
 - [x] G — Full dry-run rehearsal (mandatory before 12 Aug 2026) — complete
   - [x] G1 — Simplified scope: T-30/T-5 alerts only need the location set at some
         point before the event (not a live GPS fix in the moment), since they're
